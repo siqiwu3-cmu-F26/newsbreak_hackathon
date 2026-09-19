@@ -14,7 +14,7 @@ export default function App() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<Home draft={draft} onDraftChange={setDraft} onPlanReady={setResult} />} />
-        <Route path="/itinerary" element={<PlanResult result={result} />} />
+        <Route path="/itinerary" element={<PlanResult result={result} onPlanChange={setResult} />} />
         <Route path="/community" element={<Community />} />
         <Route path="/experiences/:experienceId" element={<ExperienceDetail />} />
         <Route path="/offer-skill" element={<OfferSkill />} />

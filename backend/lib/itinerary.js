@@ -213,6 +213,59 @@ export function replanForRain(itinerary, constraints = {}) {
   };
 }
 
+export function reorderItinerary(itinerary, activityIds, constraints = {}) {
+  const original = itinerary?.activities;
+  if (!Array.isArray(original) || !original.length || !Array.isArray(activityIds)
+    || activityIds.length !== original.length || new Set(activityIds).size !== original.length
+    || new Set(original.map(item => item.id)).size !== original.length) {
+    throw new Error('Choose each activity exactly once when reordering.');
+  }
+  const byId = new Map(original.map(activity => [activity.id, activity]));
+  if (activityIds.some(id => !byId.has(id))) throw new Error('The reordered plan contains an unknown activity.');
+  const limits = { ...itinerary.constraints, ...constraints };
+  const startTime = limits.startTime ?? original[0].startTime;
+  const endTime = limits.endTime ?? original.at(-1).endTime;
+  if (!validTime(startTime) || !validTime(endTime) || startTime >= endTime) {
+    throw new Error('Choose a valid same-day planning window.');
+  }
+  const activities = activityIds.map(id => {
+    const activity = byId.get(id);
+    if (!validTime(activity.startTime) || !validTime(activity.endTime)
+      || activity.endTime <= activity.startTime
+      || !Number.isFinite(activity.lat) || Math.abs(activity.lat) > 90
+      || !Number.isFinite(activity.lng) || Math.abs(activity.lng) > 180
+      || !Number.isFinite(activity.cost) || activity.cost < 0
+      || !Number.isFinite(activity.credits) || activity.credits < 0) {
+      throw new Error('This activity is missing valid time, cost, or location information.');
+    }
+    return { ...activity, duration: toMinutes(activity.endTime) - toMinutes(activity.startTime) };
+  });
+  addTravelTimes(activities);
+  let cursor = toMinutes(startTime);
+  for (const activity of activities) {
+    const experience = experienceById.get(activity.id);
+    const openFrom = experience?.openFrom ?? activity.openFrom;
+    const openTo = experience?.openTo ?? activity.openTo;
+    if (validTime(openFrom)) cursor = Math.max(cursor, toMinutes(openFrom));
+    const finish = cursor + activity.duration;
+    if (validTime(openTo) && finish > toMinutes(openTo)) {
+      throw new Error(`${activity.name} would finish after closing at ${openTo}. Try another order.`);
+    }
+    if (finish > toMinutes(endTime)) {
+      throw new Error(`This order would end after ${endTime}. Extend your planning window or try another order.`);
+    }
+    activity.startTime = fromMinutes(cursor);
+    activity.endTime = fromMinutes(finish);
+    cursor = finish + activity.travelToNext;
+  }
+  return {
+    ...itinerary,
+    activities,
+    totals: calculateTotals(activities),
+    constraints: { ...limits, startTime, endTime },
+  };
+}
+
 function replaceAtIndex(activities, index, replacement, endTime, reason) {
   const next = activities.map((item) => ({ ...item }));
   const oldDuration = Math.max(0, toMinutes(next[index].endTime) - toMinutes(next[index].startTime));
