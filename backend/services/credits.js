@@ -1,78 +1,84 @@
 import crypto from "node:crypto";
 
-import { db } from "../lib/db.js";
+import { getDatabase, withTransaction } from "../db/mongo.js";
 import { HttpError } from "../lib/httpError.js";
 import { WELCOME_CREDITS } from "./identity.js";
 
-// Time credits are an append-only ledger per user. The balance is always derived from the
-// ledger, so it can't drift from the history the wallet page shows.
-const selectBalance = db.prepare(`
-  SELECT COALESCE(SUM(CASE type WHEN 'earn' THEN amount ELSE -amount END), 0) AS balance
-  FROM credit_transactions WHERE user_id = ?`);
-const selectTransactions = db.prepare("SELECT * FROM credit_transactions WHERE user_id = ? ORDER BY seq DESC");
-const selectWelcome = db.prepare("SELECT 1 AS granted FROM credit_transactions WHERE user_id = ? AND reason = 'welcome'");
-const insertTransaction = db.prepare(`
-  INSERT INTO credit_transactions
-    (id, user_id, type, amount, reason, experience_id, experience_name, balance_after, created_at)
-  VALUES (@id, @user_id, @type, @amount, @reason, @experience_id, @experience_name, @balance_after, @created_at)`);
+const assertAmount = (amount) => {
+  if (!Number.isInteger(amount) || amount <= 0) {
+    throw new HttpError(400, "Credit amount must be a positive whole number");
+  }
+};
 
-const toTransaction = (row) => ({
-  id: row.id,
-  userId: row.user_id,
-  type: row.type,
-  amount: row.amount,
-  reason: row.reason,
-  ...(row.experience_id && { experienceId: row.experience_id, experienceName: row.experience_name }),
-  balanceAfter: row.balance_after,
-  createdAt: row.created_at
+const makeTransaction = (userId, type, amount, reason, balanceAfter, meta = {}) => ({
+  id: `txn_${crypto.randomUUID()}`,
+  userId,
+  type,
+  amount,
+  reason,
+  ...(meta.experienceId && { experienceId: meta.experienceId, experienceName: meta.experienceName }),
+  balanceAfter,
+  createdAt: new Date()
 });
 
-export const getBalance = (userId) => selectBalance.get(userId).balance;
-
-export const listTransactions = (userId) => selectTransactions.all(userId).map(toTransaction);
-
-// Must run inside a db.transaction so the balance it reads can't change before the insert.
-function record(userId, type, amount, reason, meta) {
-  const entry = {
-    id: `txn_${crypto.randomUUID()}`,
-    user_id: userId,
-    type,
-    amount,
-    reason,
-    experience_id: meta.experienceId ?? null,
-    experience_name: meta.experienceName ?? null,
-    balance_after: getBalance(userId) + (type === "earn" ? amount : -amount),
-    created_at: new Date().toISOString()
-  };
-  insertTransaction.run(entry);
-  return toTransaction(entry);
+export async function getBalance(userId) {
+  const db = await getDatabase();
+  const user = await db.collection("users").findOne({ id: userId }, { projection: { creditBalance: 1 } });
+  return user?.creditBalance ?? 0;
 }
 
-function assertAmount(amount) {
-  if (!Number.isInteger(amount) || amount <= 0) throw new HttpError(400, "Credit amount must be a positive whole number");
+export async function listTransactions(userId) {
+  const db = await getDatabase();
+  return db.collection("creditTransactions").find({ userId }).sort({ createdAt: -1 }).toArray();
 }
 
-export function earn(userId, amount, reason, meta = {}) {
+export async function earn(userId, amount, reason, meta = {}) {
   assertAmount(amount);
-  return db.transaction(() => record(userId, "earn", amount, reason, meta))();
+  return withTransaction(async (db, session) => {
+    const user = await db.collection("users").findOneAndUpdate(
+      { id: userId },
+      { $inc: { creditBalance: amount }, $set: { updatedAt: new Date() } },
+      { returnDocument: "after", includeResultMetadata: false, session }
+    );
+    if (!user) throw new HttpError(404, "User not found");
+    const entry = makeTransaction(userId, "earn", amount, reason, user.creditBalance, meta);
+    await db.collection("creditTransactions").insertOne(entry, { session });
+    return entry;
+  });
 }
 
-export function spend(userId, amount, reason, meta = {}) {
+export async function spend(userId, amount, reason, meta = {}) {
   assertAmount(amount);
-  return db.transaction(() => {
-    const balance = getBalance(userId);
-    if (balance < amount) {
-      throw new HttpError(402, "Not enough Time Credits", { balance, required: amount });
+  return withTransaction(async (db, session) => {
+    const user = await db.collection("users").findOneAndUpdate(
+      { id: userId, creditBalance: { $gte: amount } },
+      { $inc: { creditBalance: -amount }, $set: { updatedAt: new Date() } },
+      { returnDocument: "after", includeResultMetadata: false, session }
+    );
+    if (!user) {
+      const existing = await db.collection("users").findOne({ id: userId }, { projection: { creditBalance: 1 }, session });
+      if (!existing) throw new HttpError(404, "User not found");
+      throw new HttpError(402, "Not enough Time Credits", { balance: existing.creditBalance ?? 0, required: amount });
     }
-    return record(userId, "spend", amount, reason, meta);
-  })();
+    const entry = makeTransaction(userId, "spend", amount, reason, user.creditBalance, meta);
+    await db.collection("creditTransactions").insertOne(entry, { session });
+    return entry;
+  });
 }
 
-// Granted once, when identity and address verification are both complete (not at signup,
-// so unverified accounts can't farm credits).
-export function grantWelcomeCredits(userId) {
-  return db.transaction(() => {
-    if (selectWelcome.get(userId)) return null;
-    return record(userId, "earn", WELCOME_CREDITS, "welcome", {});
-  })();
+export async function grantWelcomeCredits(userId) {
+  return withTransaction(async (db, session) => {
+    const user = await db.collection("users").findOneAndUpdate(
+      { id: userId, welcomeCreditsGranted: { $ne: true } },
+      {
+        $set: { welcomeCreditsGranted: true, updatedAt: new Date() },
+        $inc: { creditBalance: WELCOME_CREDITS }
+      },
+      { returnDocument: "after", includeResultMetadata: false, session }
+    );
+    if (!user) return null;
+    const entry = makeTransaction(userId, "earn", WELCOME_CREDITS, "welcome", user.creditBalance);
+    await db.collection("creditTransactions").insertOne(entry, { session });
+    return entry;
+  });
 }

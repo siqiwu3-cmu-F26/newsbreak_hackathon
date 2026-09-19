@@ -26,7 +26,8 @@ Backend:
 cd backend
 npm ci
 cp .env.example .env
-# Add ANTHROPIC_API_KEY and, when required, ANTHROPIC_WORKSPACE_ID to .env.
+# Add ANTHROPIC_API_KEY and MONGODB_URI to .env.
+npm run db:init
 npm run dev
 ```
 
@@ -49,7 +50,8 @@ Backend (`backend/.env`):
 - `ANTHROPIC_API_KEY`: required for live AI plans and skill listings.
 - `ANTHROPIC_WORKSPACE_ID`: optional workspace header for organization-level keys.
 - `PORT`: optional backend port; defaults to `3001`.
-- `DB_FILE`: optional path to the SQLite database file; defaults to `backend/data/app.db` (auto-created, no server required).
+- `MONGODB_URI`: MongoDB Atlas connection string used for users, sessions, and Time Credits.
+- `MONGODB_DB_NAME`: optional database name; defaults to `localconnect`.
 - `ID_HASH_SECRET`: optional secret for hashing stored ID numbers; defaults to a dev-only value — set a real one before deploying.
 
 Frontend (`frontend/.env`):
@@ -66,7 +68,7 @@ All routes are also available under an `/api` prefix (e.g. `/api/plan`) for the 
 | Route | Purpose |
 | --- | --- |
 | `GET /health` | Liveness check |
-| `POST /auth/signup`, `/auth/login`, `/auth/logout`, `GET /auth/me` | Account + session |
+| `POST /auth/signup` (or `/auth/register`), `/auth/login`, `/auth/logout`, `GET /auth/me` | Account + session |
 | `POST /auth/verify-identity`, `/auth/verify-address` | Mock identity/address verification |
 | `GET /credits`, `POST /credits/spend` | Time Credit balance and spending |
 | `GET /experiences` | Business + community experience catalog |
@@ -96,5 +98,6 @@ npm run test:agent
 - `backend/`: Express API.
   - `routes/`: HTTP endpoints (auth, credits, plan, replace/reorder/replan, skills, experiences, context).
   - `services/`: Anthropic client, itinerary/skill prompts, weather/sunset/location, credits, identity/address.
-  - `lib/`: SQLite storage (`db.js`), deterministic itinerary logic (`itinerary.js`), shared validation helpers.
+  - `db/`: MongoDB connection, collection indexes, and transaction helper.
+  - `lib/`: deterministic itinerary logic and shared validation/security helpers.
   - `data/experiences.json`: demo business and community catalog.
