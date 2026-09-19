@@ -1,10 +1,24 @@
 import test from 'node:test';
+import { reorderItinerary } from '../src/services/api.js';
 import assert from 'node:assert/strict';
 import { createDraft, DEMO_REQUEST, toPlanRequest, validateDraft } from '../src/lib/planRequest.js';
 import { getDemoItinerary } from '../src/data/demoItinerary.js';
 import { isItinerary, toDisplayPlan } from '../src/lib/itinerary.js';
 import { scheduleConflict } from '../src/lib/replacement.js';
 import { createAnchorOptions, createPlan, getEnvironmentContext, getExperiences, replaceItinerary, replanItinerary } from '../src/services/api.js';
+
+test('reordering sends the complete order and surfaces schedule conflicts', async () => {
+  const itinerary = getDemoItinerary();
+  const ids = itinerary.activities.map(activity => activity.id).reverse();
+  await reorderItinerary(itinerary, ids, DEMO_REQUEST, { fetchImpl: async (url, options) => {
+    assert.equal(url, '/api/reorder');
+    assert.deepEqual(JSON.parse(options.body), { itinerary, activityIds: ids, constraints: DEMO_REQUEST });
+    return { ok: true, json: async () => itinerary };
+  } });
+  await assert.rejects(reorderItinerary(itinerary, ids, DEMO_REQUEST, { fetchImpl: async () => ({
+    ok: false, status: 422, json: async () => ({ error: 'This order would end after 20:00.' }),
+  }) }), /end after 20:00/);
+});
 
 test('form emits exactly the PlanRequest contract, with numbers and trimmed notes', () => {
   const draft = createDraft(DEMO_REQUEST);

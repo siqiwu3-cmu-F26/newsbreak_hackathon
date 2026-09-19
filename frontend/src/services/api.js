@@ -56,13 +56,17 @@ export async function createPlan(request, { mock = false, signal, timeoutMs = PL
   }
 }
 
-async function postItinerary(path, body, { fetchImpl = globalThis.fetch } = {}) {
+async function postItinerary(path, body, { fetchImpl = globalThis.fetch, signal } = {}) {
   const response = await fetchImpl(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
   });
-  if (!response.ok) throw new Error(`Planning service returned ${response.status}`);
+  if (!response.ok) {
+    const detail = await response.json().catch(() => null);
+    throw new Error(typeof detail?.error === 'string' ? detail.error : `Planning service returned ${response.status}`);
+  }
   const itinerary = await response.json();
   if (!isItinerary(itinerary)) throw new Error('Planning service returned an invalid itinerary');
   return itinerary;
@@ -80,6 +84,10 @@ export function replanItinerary(itinerary, condition, constraints, options) {
   return postItinerary('/replan', { itinerary, condition, constraints }, options);
 }
 
+export function reorderItinerary(itinerary, activityIds, constraints, options) {
+  return postItinerary('/reorder', { itinerary, activityIds, constraints }, options);
+}
+
 export async function getEnvironmentContext({ location = 'Palo Alto, CA', lat, lng, date } = {}, { fetchImpl = globalThis.fetch } = {}) {
   const params = new URLSearchParams({ location });
   if (Number.isFinite(Number(lat))) params.set('lat', String(lat));
@@ -90,8 +98,10 @@ export async function getEnvironmentContext({ location = 'Palo Alto, CA', lat, l
   return response.json();
 }
 
-export async function getExperiences({ fetchImpl = globalThis.fetch } = {}) {
-  const response = await fetchImpl(`${API_BASE_URL}/experiences`);
+export async function getExperiences({ fetchImpl = globalThis.fetch, signal } = {}) {
+  const response = await fetchImpl(`${API_BASE_URL}/experiences`, {
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
+  });
   if (!response.ok) throw new Error(`Experience service returned ${response.status}`);
   const result = await response.json();
   if (!Array.isArray(result)) throw new Error('Experience service returned invalid data');
