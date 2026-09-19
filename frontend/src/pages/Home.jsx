@@ -93,7 +93,12 @@ export default function Home({ draft, onDraftChange, onPlanReady }) {
           </div>
 
           <div>
-            <div className="grid grid-cols-2 gap-4 sm:gap-5">
+            <div className="grid gap-4 sm:grid-cols-3 sm:gap-5">
+              <div className="min-w-0">
+                <label htmlFor="date" className="field-label">Date</label>
+                <input id="date" name="date" type="date" required value={draft.date} onChange={event => update('date', event.target.value)} className="form-input" aria-invalid={Boolean(errors.date)} aria-describedby={errors.date ? 'date-error time-help' : 'time-help'} />
+                {errors.date && <p id="date-error" className="field-error">{errors.date}</p>}
+              </div>
               {['startTime', 'endTime'].map(field => (
                 <div key={field} className="min-w-0">
                   <label htmlFor={field} className="field-label">{field === 'startTime' ? 'Start time' : 'End time'}</label>

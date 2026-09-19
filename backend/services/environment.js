@@ -1,8 +1,8 @@
-const { geocodeLocation } = require("./location");
-const { getWeather } = require("./weather");
-const { getSunTimes } = require("./sunset");
+import { geocodeLocation } from "./location.js";
+import { getWeather } from "./weather.js";
+import { getSunTimes } from "./sunset.js";
 
-async function getEnvironmentContext({ query = "Palo Alto, CA", lat, lng, date } = {}) {
+export async function getEnvironmentContext({ query = "Palo Alto, CA", lat, lng, date } = {}) {
   const location = Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))
     ? {
         city: query.split(",")[0] || "Selected location",
@@ -32,5 +32,3 @@ async function getEnvironmentContext({ query = "Palo Alto, CA", lat, lng, date }
     },
   };
 }
-
-module.exports = { getEnvironmentContext };

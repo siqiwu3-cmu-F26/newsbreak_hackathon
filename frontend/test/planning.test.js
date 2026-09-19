@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createDraft, DEMO_REQUEST, toPlanRequest, validateDraft } from '../src/lib/planRequest.js';
 import { getDemoItinerary } from '../src/data/demoItinerary.js';
 import { isItinerary, toDisplayPlan } from '../src/lib/itinerary.js';
-import { createPlan } from '../src/services/api.js';
+import { createPlan, getEnvironmentContext, replaceItinerary, replanItinerary } from '../src/services/api.js';
 
 test('form emits exactly the PlanRequest contract, with numbers and trimmed notes', () => {
   const draft = createDraft(DEMO_REQUEST);
@@ -111,4 +111,27 @@ test('user cancellation rejects instead of delivering a fallback and redirecting
   controller.abort();
   await assert.rejects(promise, { name: 'AbortError' });
   await assert.rejects(createPlan(DEMO_REQUEST, { mock: true, signal: controller.signal }), { name: 'AbortError' });
+});
+
+test('replace, rain replan, and local context use their integration endpoints', async () => {
+  const itinerary = getDemoItinerary();
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    calls.push({ url, body: options.body && JSON.parse(options.body) });
+    if (String(url).startsWith('/api/context')) {
+      return { ok: true, json: async () => ({ location: { city: 'Palo Alto' }, weather: { condition: 'clear' }, sunset: '7:09 PM' }) };
+    }
+    return { ok: true, json: async () => itinerary };
+  };
+
+  await replaceItinerary(itinerary, 'community_01', DEMO_REQUEST, { fetchImpl });
+  await replanItinerary(itinerary, 'rain', DEMO_REQUEST, { fetchImpl });
+  const context = await getEnvironmentContext({ location: 'Palo Alto, CA', date: '2026-09-19' }, { fetchImpl });
+
+  assert.equal(calls[0].url, '/api/replace');
+  assert.equal(calls[0].body.activityId, 'community_01');
+  assert.equal(calls[1].url, '/api/replan');
+  assert.equal(calls[1].body.condition, 'rain');
+  assert.match(calls[2].url, /^\/api\/context\?/);
+  assert.equal(context.weather.condition, 'clear');
 });

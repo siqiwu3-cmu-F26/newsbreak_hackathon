@@ -289,6 +289,8 @@
 .listing-preview h2 { margin: 0; font-family: Georgia, serif; font-size: 1.7rem; font-weight: 500; }
 .listing-preview p { color: var(--lc-muted); font-size: 0.85rem; }
 .listing-preview__meta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; color: #586a62; font-size: 0.77rem; }
+.listing-preview__actions { display: flex; align-items: center; flex-direction: column; gap: 8px; }
+.listing-preview__published { margin: 0; color: #536e28; font-size: 0.78rem; font-weight: 750; }
 
 @media (max-width: 940px) {
   .community-hero { grid-template-columns: 1fr; }

@@ -40,3 +40,33 @@ export async function createPlan(request, { mock = false, signal, timeoutMs = PL
     signal?.removeEventListener('abort', cancel);
   }
 }
+
+async function postItinerary(path, body, { fetchImpl = globalThis.fetch } = {}) {
+  const response = await fetchImpl(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(`Planning service returned ${response.status}`);
+  const itinerary = await response.json();
+  if (!isItinerary(itinerary)) throw new Error('Planning service returned an invalid itinerary');
+  return itinerary;
+}
+
+export function replaceItinerary(itinerary, activityId, constraints, options) {
+  return postItinerary('/replace', { itinerary, activityId, constraints }, options);
+}
+
+export function replanItinerary(itinerary, condition, constraints, options) {
+  return postItinerary('/replan', { itinerary, condition, constraints }, options);
+}
+
+export async function getEnvironmentContext({ location = 'Palo Alto, CA', lat, lng, date } = {}, { fetchImpl = globalThis.fetch } = {}) {
+  const params = new URLSearchParams({ location });
+  if (Number.isFinite(Number(lat))) params.set('lat', String(lat));
+  if (Number.isFinite(Number(lng))) params.set('lng', String(lng));
+  if (date) params.set('date', date);
+  const response = await fetchImpl(`${API_BASE_URL}/context?${params}`);
+  if (!response.ok) throw new Error(`Context service returned ${response.status}`);
+  return response.json();
+}

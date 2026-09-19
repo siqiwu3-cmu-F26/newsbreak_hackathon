@@ -16,10 +16,14 @@ export function normalizePlanRequest(body = {}) {
   return {
     groupType: body.groupType || "date",
     people: positiveNumber(body.people, 2),
+    date: /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : "2026-09-19",
     startTime: validTime(body.startTime) ? body.startTime : "15:00",
     endTime: validTime(body.endTime) ? body.endTime : "20:00",
     budget: nonNegativeNumber(body.budget, 80),
     interests: Array.isArray(body.interests) ? body.interests.filter(Boolean) : [],
+    location: body.location && typeof body.location === "object"
+      ? body.location
+      : { city: "Palo Alto", lat: 37.4419, lng: -122.143 },
     notes: typeof body.notes === "string" ? body.notes : ""
   };
 }
@@ -32,7 +36,7 @@ export function filterExperiences(request) {
   return matches.length >= 5 ? matches : experiences;
 }
 
-export function validateAgentPlan(rawPlan, request) {
+export function validateAgentPlan(rawPlan, request, environment) {
   const errors = [];
   const activities = rawPlan?.activities;
 
@@ -41,6 +45,7 @@ export function validateAgentPlan(rawPlan, request) {
   if (activities.length < 3 || activities.length > 5) errors.push("plan must contain 3 to 5 activities");
 
   let previousEnd = request.startTime;
+  let previousExperience = null;
   let cash = 0;
   let communityCount = 0;
   const seen = new Set();
@@ -58,14 +63,27 @@ export function validateAgentPlan(rawPlan, request) {
       continue;
     }
     if (toMinutes(activity.startTime) < toMinutes(previousEnd)) errors.push(`activity ${activity.id} overlaps or is out of order`);
+    if (previousExperience) {
+      const requiredTravel = travelMinutes(previousExperience, experience);
+      if (toMinutes(activity.startTime) < toMinutes(previousEnd) + requiredTravel) {
+        errors.push(`activity ${activity.id} does not leave ${requiredTravel} minutes for travel`);
+      }
+    }
     if (toMinutes(activity.endTime) <= toMinutes(activity.startTime)) errors.push(`activity ${activity.id} must end after it starts`);
+    if (toMinutes(activity.endTime) - toMinutes(activity.startTime) !== experience.duration) {
+      errors.push(`activity ${activity.id} must use its listed duration of ${experience.duration} minutes`);
+    }
     if (toMinutes(activity.startTime) < toMinutes(request.startTime) || toMinutes(activity.endTime) > toMinutes(request.endTime)) {
       errors.push(`activity ${activity.id} is outside the requested time window`);
     }
     if (toMinutes(activity.startTime) < toMinutes(experience.openFrom) || toMinutes(activity.endTime) > toMinutes(experience.openTo)) {
       errors.push(`activity ${activity.id} is outside its opening hours`);
     }
+    if (environment?.weather?.condition === "rain" && !experience.indoor) {
+      errors.push(`activity ${activity.id} is outdoors during rain`);
+    }
     previousEnd = activity.endTime;
+    previousExperience = experience;
     cash += experience.cost;
     if (experience.type === "community") communityCount += 1;
   }
@@ -109,7 +127,9 @@ export function hydrateItinerary(rawPlan, request, { fallback = false } = {}) {
     constraints: {
       startTime: request.startTime,
       endTime: request.endTime,
-      budget: request.budget
+      budget: request.budget,
+      date: request.date,
+      location: request.location
     },
     ...(fallback ? { fallback: true } : {})
   };

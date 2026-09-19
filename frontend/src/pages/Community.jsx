@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import ExperienceCard from "../components/ExperienceCard";
 import CreditBadge from "../components/CreditBadge";
+import { API_BASE_URL } from "../config.js";
 import communityExperiences from "../data/communityExperiences";
 import "../person5.css";
 
 const categories = ["all", "creative", "food", "outdoors", "relaxing", "culture"];
 
-function apiUrl(path) {
-  const base = import.meta.env.VITE_API_BASE_URL || "";
-  return `${base}${path}`;
-}
 export default function Community({ onSelectExperience, onOfferSkill }) {
+  const navigate = useNavigate();
   const [experiences, setExperiences] = useState(communityExperiences);
   const [category, setCategory] = useState("all");
   const [query, setQuery] = useState("");
@@ -20,14 +19,19 @@ export default function Community({ onSelectExperience, onOfferSkill }) {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 3500);
 
-    fetch(apiUrl("/api/experiences"), { signal: controller.signal })
+    fetch(`${API_BASE_URL}/experiences`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error("Experiences API unavailable");
         return response.json();
       })
       .then((data) => {
         const list = Array.isArray(data) ? data : data.experiences;
-        const communityOnly = (list || []).filter((item) => item.type === "community");
+        const communityOnly = (list || [])
+          .filter((item) => item.type === "community")
+          .map((item) => ({
+            ...communityExperiences.find((fallback) => fallback.id === item.id),
+            ...item,
+          }));
         if (communityOnly.length) {
           setExperiences(communityOnly);
           setUsingFallback(false);
@@ -56,7 +60,7 @@ export default function Community({ onSelectExperience, onOfferSkill }) {
       onSelectExperience(experience);
       return;
     }
-    window.location.assign(`/community/${experience.id}`);
+    navigate(`/experiences/${experience.id}`);
   };
 
   const offerSkill = () => {
@@ -64,7 +68,7 @@ export default function Community({ onSelectExperience, onOfferSkill }) {
       onOfferSkill();
       return;
     }
-    window.location.assign("/offer-skill");
+    navigate("/offer-skill");
   };
 
   return (

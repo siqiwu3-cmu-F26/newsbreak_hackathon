@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import CreditBadge from "../components/CreditBadge";
 import "../person5.css";
 
@@ -13,15 +14,17 @@ function titleFromDescription(description) {
   return `Learn ${text.split(/\s+/).slice(0, 5).join(" ")}`;
 }
 export default function OfferSkill({ onBack, onPublish }) {
+  const navigate = useNavigate();
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState(60);
   const [groupSize, setGroupSize] = useState(4);
   const [generated, setGenerated] = useState(false);
+  const [published, setPublished] = useState(false);
   const previewTitle = useMemo(() => titleFromDescription(description), [description]);
 
   return (
     <main className="offer-skill-page">
-      <button className="back-link" type="button" onClick={onBack || (() => window.history.back())}>← Back</button>
+      <button className="back-link" type="button" onClick={onBack || (() => navigate("/community"))}>← Back</button>
       <div className="offer-skill-layout">
         <section className="offer-skill-intro">
           <span className="section-kicker">Offer a skill</span>
@@ -48,6 +51,7 @@ export default function OfferSkill({ onBack, onPublish }) {
               onChange={(event) => {
                 setDescription(event.target.value);
                 setGenerated(false);
+                setPublished(false);
               }}
               placeholder="For example: I make fresh pasta with my grandmother's recipe and would love to teach small groups..."
               rows="7"
@@ -93,13 +97,19 @@ export default function OfferSkill({ onBack, onPublish }) {
               <CreditBadge credits={duration > 60 ? 2 : 1} compact />
             </div>
           </div>
-          <button
-            className="person5-button person5-button--primary"
-            type="button"
-            onClick={() => onPublish?.({ title: previewTitle, description, duration, capacity: groupSize })}
-          >
-            Publish experience
-          </button>
+          <div className="listing-preview__actions">
+            <button
+              className="person5-button person5-button--primary"
+              type="button"
+              onClick={() => {
+                onPublish?.({ title: previewTitle, description, duration, capacity: groupSize });
+                setPublished(true);
+              }}
+            >
+              {published ? "✓ Published" : "Publish experience"}
+            </button>
+            {published && <p className="listing-preview__published" role="status">Your demo listing is ready for the community catalog.</p>}
+          </div>
         </section>
       )}
     </main>

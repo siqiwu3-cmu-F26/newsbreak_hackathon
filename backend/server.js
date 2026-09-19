@@ -2,6 +2,7 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 
+import contextRouter from "./routes/context.js";
 import experiencesRouter from "./routes/experiences.js";
 import planRouter from "./routes/plan.js";
 import replaceRouter from "./routes/replace.js";
@@ -18,12 +19,14 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/experiences", experiencesRouter);
+app.use("/context", contextRouter);
 app.use("/plan", planRouter);
 app.use("/replace", replaceRouter);
 app.use("/replan", replanRouter);
 
 // Compatibility aliases while the frontend team settles the API prefix.
 app.use("/api/experiences", experiencesRouter);
+app.use("/api/context", contextRouter);
 app.use("/api/plan", planRouter);
 app.use("/api/replace", replaceRouter);
 app.use("/api/replan", replanRouter);
