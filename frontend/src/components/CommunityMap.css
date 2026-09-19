@@ -1,0 +1,215 @@
+/* Styles for the community map. Uses the --lc-* tokens defined in person5.css. */
+
+.community-map {
+  margin-bottom: 28px;
+  overflow: hidden;
+  border: 1px solid var(--lc-line);
+  border-radius: 23px;
+  background: var(--lc-paper);
+  box-shadow: 0 8px 25px rgba(23, 53, 45, 0.055);
+}
+
+.community-map__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 20px;
+  padding: 20px 22px 14px;
+}
+
+.community-map__header h3 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 1.55rem;
+  font-weight: 500;
+}
+
+.community-map__source {
+  margin: 6px 0 0;
+  color: var(--lc-muted);
+  font-size: 0.82rem;
+}
+
+.community-map__error {
+  margin: 0 22px 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: #7a3b1d;
+  background: #fbeee3;
+  font-size: 0.82rem;
+}
+
+.community-map__canvas {
+  height: 420px;
+  margin: 0 14px;
+  overflow: hidden;
+  border-radius: 17px;
+  background: #e9eee6;
+  /* Keep Leaflet's panes below the sticky header and popups from other UI. */
+  isolation: isolate;
+}
+
+.community-map__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 22px;
+  margin: 0;
+  padding: 14px 22px 18px;
+  list-style: none;
+  color: var(--lc-muted);
+  font-size: 0.78rem;
+}
+
+.community-map__legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.community-map__legend-note {
+  margin-left: auto;
+}
+
+.community-map__legend-pin,
+.community-map__legend-you {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+.community-map__legend-pin {
+  color: white;
+  background: var(--lc-green);
+  font-size: 0.7rem;
+}
+
+.community-map__legend-you {
+  width: 14px;
+  height: 14px;
+  border: 3px solid white;
+  background: #2f6fdb;
+  box-shadow: 0 0 0 1px rgba(47, 111, 219, 0.5);
+}
+
+/* Experience pin: a green circle with a small pointer underneath. */
+.community-map__pin {
+  background: none;
+  border: 0;
+}
+
+.community-map__pin span {
+  position: relative;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 3px solid white;
+  border-radius: 50%;
+  color: white;
+  background: var(--lc-green);
+  box-shadow: 0 4px 10px rgba(23, 53, 45, 0.35);
+  font-size: 0.85rem;
+}
+
+.community-map__pin span::after {
+  content: "";
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-top: 9px solid var(--lc-green);
+  border-right: 7px solid transparent;
+  border-left: 7px solid transparent;
+  transform: translateX(-50%);
+}
+
+/* "You are here": a blue dot with a soft pulsing ring. */
+.community-map__you {
+  background: none;
+  border: 0;
+}
+
+.community-map__you span {
+  position: relative;
+  display: block;
+  width: 22px;
+  height: 22px;
+  border: 4px solid white;
+  border-radius: 50%;
+  background: #2f6fdb;
+  box-shadow: 0 2px 8px rgba(47, 111, 219, 0.5);
+}
+
+.community-map__you span::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border: 2px solid rgba(47, 111, 219, 0.45);
+  border-radius: 50%;
+  animation: community-map-pulse 2.2s ease-out infinite;
+}
+
+@keyframes community-map-pulse {
+  from { opacity: 1; transform: scale(0.5); }
+  to { opacity: 0; transform: scale(1.3); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .community-map__you span::after { animation: none; opacity: 0.6; }
+}
+
+.community-map__accuracy {
+  fill: #2f6fdb;
+  fill-opacity: 0.12;
+  stroke: #2f6fdb;
+  stroke-opacity: 0.35;
+  stroke-width: 1;
+}
+
+.community-map__popup {
+  display: flex;
+  min-width: 170px;
+  flex-direction: column;
+  gap: 4px;
+  font-family: inherit;
+  color: var(--lc-ink);
+}
+
+.community-map__popup span {
+  color: var(--lc-muted);
+  font-size: 0.78rem;
+}
+
+.community-map__popup .community-map__distance {
+  color: var(--lc-green);
+  font-weight: 800;
+}
+
+.community-map__view {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 999px;
+  color: white;
+  background: var(--lc-green);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.community-map__view:hover { background: var(--lc-green-dark); }
+
+@media (max-width: 640px) {
+  .community-map__canvas { height: 320px; }
+  .community-map__legend-note { margin-left: 0; }
+}
+
+/* Distance line on an experience card (Community page). */
+.experience-card__distance { color: var(--lc-green); font-weight: 800; }

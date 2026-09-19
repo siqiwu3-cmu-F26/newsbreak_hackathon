@@ -27,7 +27,7 @@ export default function App() {
           <Route element={<RequireAuth verified />}>
             <Route index element={<Home draft={draft} onDraftChange={setDraft} onPlanReady={setResult} />} />
             <Route path="/plan-together" element={<PlanTogether onPlanReady={setResult} />} />
-            <Route path="/itinerary" element={<PlanResult result={result} />} />
+            <Route path="/itinerary" element={<PlanResult result={result} onPlanChange={setResult} />} />
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/community" element={<Community />} />
             <Route path="/experiences/:experienceId" element={<ExperienceDetail />} />
