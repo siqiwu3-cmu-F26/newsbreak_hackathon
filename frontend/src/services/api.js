@@ -4,6 +4,21 @@ import { isItinerary } from '../lib/itinerary.js';
 
 export const PLAN_TIMEOUT_MS = 15_000;
 
+export async function createAnchorOptions(request, { signal, fetchImpl = globalThis.fetch } = {}) {
+  const response = await fetchImpl(`${API_BASE_URL}/plan/options`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+    signal,
+  });
+  if (!response.ok) throw new Error('Planning service unavailable');
+  const result = await response.json();
+  if (!result || typeof result.message !== 'string' || !Array.isArray(result.options) || result.options.length !== 3) {
+    throw new Error('Planning service returned invalid options');
+  }
+  return result;
+}
+
 export async function createPlan(request, { mock = false, signal, timeoutMs = PLAN_TIMEOUT_MS, fetchImpl = globalThis.fetch } = {}) {
   signal?.throwIfAborted();
   if (mock) return { itinerary: getDemoItinerary(), source: 'demo' };
@@ -53,8 +68,12 @@ async function postItinerary(path, body, { fetchImpl = globalThis.fetch } = {}) 
   return itinerary;
 }
 
-export function replaceItinerary(itinerary, activityId, constraints, options) {
-  return postItinerary('/replace', { itinerary, activityId, constraints }, options);
+export function replaceItinerary(itinerary, activityId, constraints, replacementId, options) {
+  if (replacementId && typeof replacementId === 'object') {
+    options = replacementId;
+    replacementId = undefined;
+  }
+  return postItinerary('/replace', { itinerary, activityId, constraints, replacementId }, options);
 }
 
 export function replanItinerary(itinerary, condition, constraints, options) {
@@ -69,4 +88,12 @@ export async function getEnvironmentContext({ location = 'Palo Alto, CA', lat, l
   const response = await fetchImpl(`${API_BASE_URL}/context?${params}`);
   if (!response.ok) throw new Error(`Context service returned ${response.status}`);
   return response.json();
+}
+
+export async function getExperiences({ fetchImpl = globalThis.fetch } = {}) {
+  const response = await fetchImpl(`${API_BASE_URL}/experiences`);
+  if (!response.ok) throw new Error(`Experience service returned ${response.status}`);
+  const result = await response.json();
+  if (!Array.isArray(result)) throw new Error('Experience service returned invalid data');
+  return result;
 }

@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import MapView from '../components/MapView.jsx';
 import WeatherContext from '../components/WeatherContext.jsx';
+import ReplacementChooser from '../components/ReplacementChooser.jsx';
 import { getDemoItinerary } from '../data/demoItinerary.js';
 import { toDisplayPlan } from '../lib/itinerary.js';
 import { DEMO_REQUEST } from '../lib/planRequest.js';
-import { getEnvironmentContext, replaceItinerary, replanItinerary } from '../services/api.js';
+import { scheduleConflict } from '../lib/replacement.js';
+import { getEnvironmentContext, getExperiences, replaceItinerary, replanItinerary } from '../services/api.js';
 import Itinerary from './Itinerary.jsx';
 
 const sourceMessages = {
@@ -32,6 +34,11 @@ export default function PlanResult({ result }) {
   const [environment, setEnvironment] = useState(FALLBACK_ENVIRONMENT);
   const [notice, setNotice] = useState('');
   const [replanning, setReplanning] = useState(false);
+  const [replacementTarget, setReplacementTarget] = useState(null);
+  const [replacementOptions, setReplacementOptions] = useState([]);
+  const [replacementConflict, setReplacementConflict] = useState(null);
+  const [replacementBusy, setReplacementBusy] = useState(false);
+  const [shorterOnly, setShorterOnly] = useState(false);
 
   useEffect(() => {
     setItinerary(selected?.itinerary ?? null);
@@ -77,13 +84,72 @@ export default function PlanResult({ result }) {
 
   async function handleReplace(activity) {
     setNotice('');
+    setReplacementTarget(activity);
+    setReplacementOptions([]);
+    setReplacementConflict(null);
+    setShorterOnly(false);
     try {
-      const updated = await replaceItinerary(itinerary, activity.id || activity.experienceId, request);
-      setItinerary(updated);
-      setNotice(`${activity.name} was replaced while keeping the rest of your plan.`);
+      const catalog = await getExperiences();
+      const used = new Set(itinerary.activities.map((item) => item.id));
+      const ranked = catalog
+        .filter((item) => !used.has(item.id))
+        .sort((a, b) => Number(b.category === activity.category) - Number(a.category === activity.category)
+          || Math.abs(a.duration - activity.duration) - Math.abs(b.duration - activity.duration)
+          || a.cost - b.cost);
+      setReplacementOptions(ranked.slice(0, 3));
     } catch {
-      setNotice('We could not replace that stop. Your current plan is unchanged.');
+      setReplacementTarget(null);
+      setNotice('We could not load alternatives. Your current plan is unchanged.');
     }
+  }
+
+  function closeReplacement() {
+    if (replacementBusy) return;
+    setReplacementTarget(null);
+    setReplacementConflict(null);
+    setShorterOnly(false);
+  }
+
+  function chooseReplacement(option) {
+    const conflict = scheduleConflict(
+      itinerary,
+      replacementTarget.id || replacementTarget.experienceId,
+      replacementTarget.duration,
+      option,
+      request.endTime,
+    );
+    if (conflict) {
+      setReplacementConflict({
+        ...conflict,
+        endTime: formatClock(conflict.endTime),
+      });
+      return;
+    }
+    applyReplacement(option);
+  }
+
+  async function applyReplacement(option = replacementConflict?.replacement) {
+    if (!option || replacementBusy) return;
+    setReplacementBusy(true);
+    try {
+      const previousName = replacementTarget.name;
+      const updated = await replaceItinerary(itinerary, replacementTarget.id || replacementTarget.experienceId, request, option.id);
+      setItinerary(updated);
+      setReplacementTarget(null);
+      setReplacementConflict(null);
+      setShorterOnly(false);
+      setNotice(`${previousName} was replaced with ${option.name}. The schedule and totals were updated.`);
+    } catch {
+      setNotice('We could not apply that replacement. Your current plan is unchanged.');
+    } finally {
+      setReplacementBusy(false);
+    }
+  }
+
+  function showShorterOptions() {
+    setReplacementConflict(null);
+    setShorterOnly(true);
+    setReplacementOptions((current) => current.filter((option) => option.duration <= replacementTarget.duration));
   }
 
   async function handleRainReplan() {
@@ -138,6 +204,22 @@ export default function PlanResult({ result }) {
           <MapView activities={itinerary.activities} />
         </div>
       </div>
+      <ReplacementChooser
+        target={replacementTarget}
+        options={replacementOptions}
+        conflict={replacementConflict}
+        busy={replacementBusy}
+        shorterOnly={shorterOnly}
+        onChoose={chooseReplacement}
+        onCancel={closeReplacement}
+        onKeepReplacement={() => applyReplacement()}
+        onChooseShorter={showShorterOptions}
+      />
     </div>
   );
+}
+
+function formatClock(time) {
+  const [hours, mins] = String(time).split(':').map(Number);
+  return `${hours % 12 || 12}:${String(mins).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
 }
