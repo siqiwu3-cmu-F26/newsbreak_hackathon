@@ -5,3 +5,7 @@ node_modules/
 *.local
 dist/
 .DS_Store
+
+# Local user database (hashed passwords, ID details)
+backend/data/db.json
+backend/data/*.tmp
