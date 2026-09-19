@@ -11,7 +11,7 @@ function weekday(date) {
 
 // `plan` is the agent's itinerary; `onReplace(activity, index)` should resolve to the
 // replacement activity (wire to POST /api/replace). Both fall back to mock data.
-export default function Itinerary({ plan = mockPlan, onReplace }) {
+export default function Itinerary({ plan = mockPlan, onReplace, allowReplace = true }) {
   const [activities, setActivities] = useState(plan.activities);
   const [pool, setPool] = useState(mockAlternatives);
   const [replacingId, setReplacingId] = useState(null);
@@ -36,7 +36,7 @@ export default function Itinerary({ plan = mockPlan, onReplace }) {
   }
 
   return (
-    <main className="itinerary">
+    <section className="itinerary">
       <header className="itinerary__header">
         <p className="itinerary__eyebrow">Your AI-planned day</p>
         <h1>Your {weekday(plan.date)} Plan</h1>
@@ -45,11 +45,11 @@ export default function Itinerary({ plan = mockPlan, onReplace }) {
 
       <Timeline
         activities={activities}
-        onReplace={handleReplace}
+        onReplace={allowReplace ? handleReplace : undefined}
         replacingId={replacingId}
       />
 
-      <PlanSummary activities={activities} budget={plan.budget} />
-    </main>
+      <PlanSummary activities={activities} budget={plan.budget} totals={allowReplace ? undefined : plan.totals} />
+    </section>
   );
 }

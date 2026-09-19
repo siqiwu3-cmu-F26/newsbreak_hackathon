@@ -1,9 +1,9 @@
 const sum = (items, pick) => items.reduce((total, item) => total + (pick(item) || 0), 0);
 
-export default function PlanSummary({ activities, budget }) {
-  const totalCost = sum(activities, (a) => a.cost);
-  const totalCredits = sum(activities, (a) => a.credits);
-  const totalTravel = sum(activities, (a) => a.travelMinutes);
+export default function PlanSummary({ activities, budget, totals }) {
+  const totalCost = totals?.cash ?? sum(activities, (a) => a.cost);
+  const totalCredits = totals?.credits ?? sum(activities, (a) => a.credits);
+  const totalTravel = totals?.travelMinutes ?? sum(activities, (a) => a.travelMinutes);
   const remaining = budget != null ? budget - totalCost : null;
 
   return (

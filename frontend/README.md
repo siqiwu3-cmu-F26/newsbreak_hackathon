@@ -13,11 +13,12 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:5173. The frontend shell runs without a backend.
+Open http://localhost:5173. The frontend runs without a backend using an explicitly labelled sample fallback. To preview the sample without any API request, open http://localhost:5173/?mock=1 or http://localhost:5173/itinerary?mock=1.
 
 ```powershell
 npm run build
 npm run preview
+npm test
 ```
 
 The production output is `dist/`; preview runs at http://localhost:4173.
@@ -27,16 +28,44 @@ The dev and preview servers fail if their configured port is occupied.
 
 | URL | Current status | Integration point |
 | --- | --- | --- |
-| `/` | Landing shell; input form is next | `src/pages/Home.jsx` (frontend 1) |
-| `/itinerary` | Placeholder | `src/pages/Itinerary.jsx` (frontend 2) |
+| `/` | Complete input form and submission | `src/pages/Home.jsx` (frontend 1) |
+| `/itinerary` | Saved result, sample, or empty state | `src/pages/PlanResult.jsx` wraps member 2's `Itinerary.jsx` |
 | `/community` | Placeholder | Community page (member 5) |
 | `/experiences/:experienceId` | Placeholder | Experience details (member 5) |
 | `/offer-skill` | Placeholder | Offer a Skill page (member 5) |
 | Any unknown path | 404 with return link | `src/App.jsx` |
 
-All routes live in `src/App.jsx`. Replace each `PagePlaceholder` with the actual page component once its default export exists. Existing empty feature files are intentionally not imported. The header, footer, and browser router are shared; feature pages should export their content without another router or application shell.
+All routes live in `src/App.jsx`, nested under `src/components/AppLayout.jsx`. The layout renders the shared navigation, header, footer, and an `Outlet` for each page. The remaining community placeholders are ready for member 5's page integration. Feature pages should export their content without another router or application shell.
 
-Shared design tokens and classes live in `src/styles.css`: `brand`, `brand-soft`, `canvas`, `ink`, `muted`, `line`; `page-container`, `panel`, `eyebrow`, `button-primary`. Tailwind is configured through the Vite plugin and the CSS `@theme` block; no separate Tailwind or PostCSS config is needed.
+The home page links to the itinerary and community pages. Navigation also provides direct access to planning, itinerary, community, and skill sharing, with an active-page indicator. The result page links back to the saved preferences. All routes can be opened and refreshed directly in Vite.
+
+## Home form and plan handoff
+
+1. Pick Date / Family / Friends / Solo, a positive whole number of people, same-day start/end times, a nonnegative total USD budget, at least one interest, and optional notes (up to 1,000 characters). Solo selects and locks the party size to 1.
+2. **Fill first-date example** fills the documented demo scenario; the fields remain editable. This does not change the submission mode.
+3. **Plan My Day** posts to the backend; inputs and submit are disabled while waiting. **Cancel** or leaving the page aborts the request without a late redirect.
+4. **Use sample plan** / `?mock=1` bypasses the network. Network/HTTP errors, invalid responses, and the 15-second timeout use an explicitly labelled fixed example. Backend responses with `fallback: true` receive a separate backup-example message. Samples are not represented as personalized results.
+5. The draft and last result persist in `sessionStorage` under `localconnect.planner.v1` for the current browser tab. Navigating back and refreshing preserves them. Corrupt/unavailable storage safely falls back to defaults/in-memory state.
+
+`src/lib/planRequest.js` owns the request contract, validation, group and interest options. No date or location is sent: this follows Design Doc (2), with Palo Alto as the demo location.
+
+```json
+{
+  "groupType": "date",
+  "people": 2,
+  "startTime": "15:00",
+  "endTime": "20:00",
+  "budget": 80,
+  "interests": ["creative", "food", "relaxing"],
+  "notes": "First date, likes flowers and quiet places"
+}
+```
+
+`createPlan(request, { mock, signal })` in `src/services/api.js` returns `{ itinerary, source }`. The result wrapper receives `{ itinerary, source, request, id }`; `itinerary` retains the backend schema (`id`, `travelToNext`, `totals`). `src/lib/itinerary.js` checks that the response is renderable and adapts it for the existing member 2 UI (`experienceId`, incoming `travelMinutes`). Backend totals are passed through rather than recalculated. Planning constraints remain backend responsibilities.
+
+The integrated result is currently read-only: `PlanResult` passes `allowReplace={false}` so a real plan cannot accidentally invoke member 2's local mock replacement function. The standalone `Itinerary` component retains its existing default replacement behavior. Connecting real Replace / Rain, maps, and community pages remains with their feature owners.
+
+Shared design tokens and classes live in `src/styles.css`: `brand`, `brand-soft`, `canvas`, `ink`, `muted`, `line`; `page-container`, `panel`, `eyebrow`, `button-primary`, `button-secondary`. Navigation wraps on narrow screens, links and buttons have a minimum 44px height, and the shell includes visible keyboard focus and a skip-to-content link. Tailwind is configured through the Vite plugin and the CSS `@theme` block; no separate Tailwind or PostCSS config is needed.
 
 ## Backend configuration
 
@@ -46,11 +75,20 @@ Optional: copy `.env.example` to `.env.local` and change the backend target.
 Copy-Item .env.example .env.local
 ```
 
-- `API_PROXY_TARGET` defaults to `http://localhost:3001` (an integration placeholder until the backend port is settled).
-- `VITE_API_BASE_URL` defaults to `/api`; import `API_BASE_URL` from `src/config.js` when implementing `src/services/api.js`.
+- `API_PROXY_TARGET` defaults to `http://localhost:3001`, matching the current Express backend.
+- `VITE_API_BASE_URL` defaults to `/api`; `src/services/api.js` imports it through `src/config.js`.
 - During development, `/api/plan` is proxied to backend `/plan`, matching Design Doc (2). If the backend exposes `/api/plan` instead, remove the rewrite in `vite.config.js`.
 - Restart Vite after changing environment variables.
-- API requests, fallback data, the planning form, and result rendering are not implemented in this scaffolding step.
+
+For local integration, use a second terminal from the repository root:
+
+```powershell
+cd backend
+npm ci
+npm start
+```
+
+The backend may return its fixed example until the AI service is available; the frontend labels this response. No AI keys are needed for the frontend or sample mode.
 
 For production, set `VITE_API_BASE_URL` to the backend URL before building (the backend must allow the frontend origin), or configure a same-origin `/api` reverse proxy. The Vite development proxy is not included in `dist/`. Never place secret API keys in `VITE_` variables.
 

@@ -44,7 +44,7 @@
   }
 
   .nav-link {
-    @apply rounded-lg px-3 py-2 text-muted hover:bg-brand-soft hover:text-brand;
+    @apply inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-muted hover:bg-brand-soft hover:text-brand;
   }
 
   .nav-link[aria-current="page"] {
@@ -57,5 +57,41 @@
 
   .skip-link {
     @apply sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-white focus:p-3;
+  }
+
+  .button-secondary {
+    @apply inline-flex min-h-11 items-center justify-center rounded-xl border border-brand px-5 py-3 text-sm font-semibold text-brand hover:bg-brand-soft;
+  }
+
+  .text-button {
+    @apply inline-flex min-h-11 cursor-pointer items-center rounded-lg px-2 text-sm font-semibold text-brand underline-offset-4 hover:underline disabled:cursor-not-allowed;
+  }
+
+  .field-label {
+    @apply block text-sm font-semibold text-ink;
+  }
+
+  .form-input {
+    @apply mt-2 block min-h-11 w-full min-w-0 rounded-xl border border-line bg-white px-3 py-3 text-base text-ink read-only:bg-canvas;
+  }
+
+  .form-input[aria-invalid="true"] {
+    @apply border-red-700;
+  }
+
+  .field-error {
+    @apply mt-2 text-sm leading-relaxed text-red-700;
+  }
+
+  .choice-card {
+    @apply relative cursor-pointer;
+  }
+
+  .choice-card-content {
+    @apply flex h-full min-h-20 flex-col justify-center rounded-xl border border-line bg-white p-3 peer-checked:border-brand peer-checked:bg-brand-soft peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-brand;
+  }
+
+  .interest-choice {
+    @apply inline-flex min-h-11 items-center rounded-full border border-line px-4 py-2 text-sm font-medium peer-checked:border-brand peer-checked:bg-brand-soft peer-checked:text-brand peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-brand;
   }
 }
