@@ -9,3 +9,6 @@ dist/
 # Local user database (hashed passwords, ID details)
 backend/data/db.json
 backend/data/*.tmp
+# SQLite user database (also its -wal/-shm files) and the backup of the older JSON one
+backend/data/*.db*
+backend/data/db.json.migrated

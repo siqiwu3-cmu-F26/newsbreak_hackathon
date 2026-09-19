@@ -4,19 +4,23 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-// The store reads DB_FILE at import time, so point it at a throwaway file first.
+// The database opens at import time using DB_FILE, so point it at a throwaway file first.
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "localconnect-auth-"));
-process.env.DB_FILE = path.join(tempDir, "db.json");
+process.env.DB_FILE = path.join(tempDir, "app.db");
 
 const { hashPassword, verifyPassword } = await import("../lib/security.js");
-const { createUser, findUserByEmail, isFullyVerified, publicUser } = await import("../services/users.js");
+const { createUser, findUserByEmail, isFullyVerified, publicUser, setVerification } = await import("../services/users.js");
 const { mockVerifyAddress, validateAddressInput } = await import("../services/address.js");
 const { createSession, destroySession, getUserForToken, SESSION_TTL_MS } = await import("../services/sessions.js");
 const { ageOn, mockVerifyIdentity, normalizeName, validateIdentityInput } = await import("../services/identity.js");
 const { earn, getBalance, grantWelcomeCredits, listTransactions, spend } = await import("../services/credits.js");
-const { createStore } = await import("../lib/db.js");
+const { db, openDatabase } = await import("../lib/db.js");
+const { rowToUser } = await import("../lib/userRows.js");
 
-test.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+test.after(() => {
+  db.close();
+  fs.rmSync(tempDir, { recursive: true, force: true });
+});
 
 const NOW = new Date("2026-09-19T12:00:00Z");
 const goodId = {
@@ -48,10 +52,95 @@ test("users are stored, unique by email, and public data hides secrets", () => {
   assert.equal(publicUser(user).verification.status, "unverified");
 });
 
-test("the database file persists across store instances", () => {
-  const file = path.join(tempDir, "persist.json");
-  createStore(file).update((state) => state.users.push({ id: "u1" }));
-  assert.deepEqual(createStore(file).read().users, [{ id: "u1" }]);
+test("the SQLite file persists across connections", () => {
+  const file = path.join(tempDir, "persist.db");
+  const first = openDatabase(file);
+  first.prepare("INSERT INTO users (id, name, email, password_hash, created_at) VALUES ('u1', 'N', 'n@x.co', 'h', 't')").run();
+  first.close();
+
+  const second = openDatabase(file);
+  assert.equal(second.prepare("SELECT COUNT(*) AS n FROM users").get().n, 1);
+  second.close();
+});
+
+test("the database itself enforces one account per ID and one welcome bonus", () => {
+  const first = createUser({ name: "One", email: "one@example.com", password: "supersecret" });
+  const second = createUser({ name: "Two", email: "two@example.com", password: "supersecret" });
+  const verified = { status: "verified", idHash: "same-id-hash" };
+
+  setVerification(first.id, verified);
+  assert.throws(() => setVerification(second.id, verified), { status: 409 });
+  assert.equal(findUserByEmail("two@example.com").verification.idHash, undefined);
+
+  grantWelcomeCredits(first.id);
+  const duplicate = () =>
+    db
+      .prepare(
+        `INSERT INTO credit_transactions (id, user_id, type, amount, reason, balance_after, created_at)
+         VALUES ('dup', ?, 'earn', 3, 'welcome', 6, 't')`
+      )
+      .run(first.id);
+  assert.throws(duplicate, { code: "SQLITE_CONSTRAINT_UNIQUE" });
+  assert.throws(() => db.prepare("UPDATE credit_transactions SET amount = 0 WHERE user_id = ?").run(first.id), {
+    code: "SQLITE_CONSTRAINT_CHECK"
+  });
+});
+
+test("an earlier db.json is imported once into SQLite and kept as a backup", () => {
+  const dir = fs.mkdtempSync(path.join(tempDir, "legacy-"));
+  const jsonFile = path.join(dir, "db.json");
+  // Shape of the previous JSON database: an identity-verified user created before addresses existed.
+  fs.writeFileSync(
+    jsonFile,
+    JSON.stringify({
+      users: [
+        {
+          id: "user_old",
+          name: "Old Timer",
+          email: "old@example.com",
+          passwordHash: "scrypt$aa$bb",
+          createdAt: "2026-09-19T00:00:00.000Z",
+          verification: {
+            status: "verified",
+            method: "mock",
+            verifiedAt: "2026-09-19T01:00:00.000Z",
+            legalName: "Old Timer",
+            dateOfBirth: "1990-01-01",
+            idType: "passport",
+            idLast4: "4567",
+            idHash: "hash-old"
+          }
+        }
+      ],
+      sessions: [
+        { tokenHash: "live", userId: "user_old", createdAt: 1, expiresAt: Date.now() + 60_000 },
+        { tokenHash: "dead", userId: "user_old", createdAt: 1, expiresAt: 5 }
+      ],
+      credits: [
+        { id: "txn_1", userId: "user_old", type: "earn", amount: 3, reason: "welcome", balanceAfter: 3, createdAt: "t1" },
+        { id: "txn_2", userId: "user_old", type: "spend", amount: 1, reason: "experience", experienceId: "community_01", experienceName: "Flowers", balanceAfter: 2, createdAt: "t2" }
+      ]
+    })
+  );
+
+  const file = path.join(dir, "app.db");
+  const migrated = openDatabase(file, { legacyJson: jsonFile });
+  const user = rowToUser(migrated.prepare("SELECT * FROM users WHERE id = 'user_old'").get());
+
+  assert.equal(user.email, "old@example.com");
+  assert.equal(user.verification.status, "verified");
+  assert.equal(user.verification.idLast4, "4567");
+  assert.equal(user.address.status, "unverified", "no address yet, so they must add one");
+  assert.equal(isFullyVerified(user), false);
+  assert.deepEqual(migrated.prepare("SELECT token_hash FROM sessions").all(), [{ token_hash: "live" }], "expired sessions are dropped");
+  assert.equal(migrated.prepare("SELECT SUM(CASE type WHEN 'earn' THEN amount ELSE -amount END) AS b FROM credit_transactions").get().b, 2);
+  assert.ok(fs.existsSync(`${jsonFile}.migrated`) && !fs.existsSync(jsonFile), "JSON is renamed, not deleted");
+  migrated.close();
+
+  // Reopening must not import again or fail.
+  const again = openDatabase(file, { legacyJson: jsonFile });
+  assert.equal(again.prepare("SELECT COUNT(*) AS n FROM users").get().n, 1);
+  again.close();
 });
 
 test("sessions resolve to a user until destroyed or expired", () => {
