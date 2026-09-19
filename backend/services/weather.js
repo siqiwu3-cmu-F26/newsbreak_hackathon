@@ -1,4 +1,4 @@
-const WEATHER_CODES = {
+export const WEATHER_CODES = {
   0: "clear",
   1: "clear",
   2: "cloudy",
@@ -29,7 +29,7 @@ const WEATHER_CODES = {
   99: "storm",
 };
 
-const FALLBACK_WEATHER = Object.freeze({
+export const FALLBACK_WEATHER = Object.freeze({
   condition: "clear",
   temperature: 72,
   precipitation: 0,
@@ -38,7 +38,7 @@ const FALLBACK_WEATHER = Object.freeze({
   source: "fallback",
 });
 
-async function getWeather({ lat, lng, timezone = "auto" } = {}, options = {}) {
+export async function getWeather({ lat, lng, timezone = "auto" } = {}, options = {}) {
   const { timeoutMs = 3500, fetchImpl = global.fetch } = options;
   if (!fetchImpl || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
     return { ...FALLBACK_WEATHER };
@@ -79,5 +79,3 @@ async function getWeather({ lat, lng, timezone = "auto" } = {}, options = {}) {
     clearTimeout(timeout);
   }
 }
-
-module.exports = { FALLBACK_WEATHER, WEATHER_CODES, getWeather };

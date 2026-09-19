@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Timeline from "../components/Timeline.jsx";
 import PlanSummary from "../components/PlanSummary.jsx";
-import { mockPlan, mockAlternatives, mockReplace } from "../data/mockPlan.js";
+import { mockPlan } from "../data/mockPlan.js";
 import "./Itinerary.css";
 
 function weekday(date) {
@@ -12,24 +12,14 @@ function weekday(date) {
 // `plan` is the agent's itinerary; `onReplace(activity, index)` should resolve to the
 // replacement activity (wire to POST /api/replace). Both fall back to mock data.
 export default function Itinerary({ plan = mockPlan, onReplace, allowReplace = true }) {
-  const [activities, setActivities] = useState(plan.activities);
-  const [pool, setPool] = useState(mockAlternatives);
   const [replacingId, setReplacingId] = useState(null);
+  const activities = plan.activities;
 
   async function handleReplace(index) {
     const current = activities[index];
     setReplacingId(current.experienceId);
     try {
-      let next;
-      if (onReplace) {
-        next = await onReplace(current, index);
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        const result = mockReplace(current, pool);
-        next = result.next;
-        setPool(result.rest);
-      }
-      setActivities((prev) => prev.map((a, i) => (i === index ? next : a)));
+      await onReplace?.(current, index);
     } finally {
       setReplacingId(null);
     }
@@ -49,7 +39,7 @@ export default function Itinerary({ plan = mockPlan, onReplace, allowReplace = t
         replacingId={replacingId}
       />
 
-      <PlanSummary activities={activities} budget={plan.budget} totals={allowReplace ? undefined : plan.totals} />
+      <PlanSummary activities={activities} budget={plan.budget} totals={plan.totals} />
     </section>
   );
 }

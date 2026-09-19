@@ -7,8 +7,9 @@ export const GROUPS = [
 
 export const INTERESTS = ['creative', 'food', 'outdoors', 'relaxing', 'active', 'culture'];
 export const DEMO_REQUEST = {
-  groupType: 'date', people: 2, startTime: '15:00', endTime: '20:00', budget: 80,
+  groupType: 'date', people: 2, date: '2026-09-19', startTime: '15:00', endTime: '20:00', budget: 80,
   interests: ['creative', 'food', 'relaxing'],
+  location: { city: 'Palo Alto', lat: 37.4419, lng: -122.143 },
   notes: 'First date, likes flowers and quiet places',
 };
 
@@ -25,6 +26,7 @@ export function validateDraft(draft) {
     errors.people = 'Solo plans are for 1 person.';
   }
   const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.date || '')) errors.date = 'Choose a date.';
   if (!timePattern.test(draft.startTime)) errors.startTime = 'Choose a start time.';
   if (!timePattern.test(draft.endTime)) errors.endTime = 'Choose an end time.';
   if (!errors.startTime && !errors.endTime && draft.endTime <= draft.startTime) {
@@ -47,10 +49,12 @@ export function toPlanRequest(draft) {
   return {
     groupType: draft.groupType,
     people: Number(draft.people),
+    date: draft.date,
     startTime: draft.startTime,
     endTime: draft.endTime,
     budget: Number(draft.budget),
     interests: [...new Set(draft.interests)],
+    location: { ...draft.location },
     notes: draft.notes.trim(),
   };
 }

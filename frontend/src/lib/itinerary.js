@@ -27,6 +27,7 @@ export function toDisplayPlan(itinerary, request) {
     ...itinerary,
     groupType: request.groupType,
     people: request.people,
+    date: request.date,
     budget: request.budget,
     activities: itinerary.activities.map((activity, index) => ({
       ...activity,

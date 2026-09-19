@@ -14,6 +14,7 @@ export default function WeatherContext({
   sunset = "7:28 PM",
   location = "Palo Alto",
   onRainReplan,
+  busy = false,
 }) {
   const condition = String(weather.condition || "clear").toLowerCase();
   const visual = weatherVisuals[condition] || weatherVisuals.cloudy;
@@ -36,8 +37,8 @@ export default function WeatherContext({
         </span>
       </div>
       {onRainReplan && (
-        <button className="weather-context__action" type="button" onClick={onRainReplan}>
-          ☂ Replan for rain
+        <button className="weather-context__action" type="button" onClick={onRainReplan} disabled={busy}>
+          {busy ? "Replanning…" : "☂ Replan for rain"}
         </button>
       )}
     </section>

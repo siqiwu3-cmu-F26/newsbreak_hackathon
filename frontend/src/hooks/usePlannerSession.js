@@ -11,7 +11,7 @@ function readSession() {
     const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY));
     if (!saved || typeof saved !== 'object') return empty;
     const draft = { ...empty.draft };
-    for (const key of ['people', 'budget', 'startTime', 'endTime', 'notes']) {
+    for (const key of ['people', 'budget', 'date', 'startTime', 'endTime', 'notes']) {
       if (typeof saved.draft?.[key] === 'string') draft[key] = saved.draft[key];
     }
     if (GROUPS.some(group => group.value === saved.draft?.groupType)) draft.groupType = saved.draft.groupType;

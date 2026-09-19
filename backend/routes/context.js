@@ -1,7 +1,7 @@
-const express = require("express");
-const { getEnvironmentContext } = require("../services/environment");
+import { Router } from "express";
+import { getEnvironmentContext } from "../services/environment.js";
 
-const router = express.Router();
+const router = Router();
 
 router.get("/", async (req, res) => {
   const context = await getEnvironmentContext({
@@ -13,4 +13,4 @@ router.get("/", async (req, res) => {
   res.json(context);
 });
 
-module.exports = router;
+export default router;
