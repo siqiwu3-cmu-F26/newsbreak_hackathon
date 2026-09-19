@@ -63,4 +63,48 @@ export async function generateItinerary({ request, experiences, feedback = [], e
 // Re-exported so existing imports (e.g. backend/test/itinerary.test.js) keep working.
 export { parseLLMJson };
 
+/**
+ * First step of the collaborative planning flow (PlanTogether.jsx / the
+ * "plan-self-choice" feature): instead of a full itinerary, offer 3
+ * meaningfully different anchor activities for the user to pick a
+ * direction from. Added by another teammate; merged here to share the
+ * same Anthropic client / JSON parsing as generateItinerary and
+ * skillAgent.js's extractSkillListing, instead of duplicating client setup.
+ *
+ * @param {object} params
+ * @param {object} params.request - normalized PlanRequest
+ * @param {object[]} params.experiences - pre-filtered candidate experiences
+ * @param {object} [params.environment] - weather/sunset/location context, if available
+ */
+export async function generateAnchorOptions({ request, experiences, environment }) {
+  const weather = environment?.weather;
+  const candidates = experiences.map(({ id, name, type, category, duration, cost, credits, indoor }) => ({
+    id, name, type, category, duration, cost, credits, indoor,
+  }));
+  const prompt = `You are the first step of a collaborative local planning agent. Do not make a full itinerary yet.
+Choose exactly 3 distinct anchor activities that give the user meaningfully different directions. Rank them best-first.
+Use only ids from the candidate list. At least one option should be a community experience when available.
+Explain why each fits and one honest tradeoff. Keep every reason and tradeoff under 18 words.
+Respond with JSON only in this exact shape:
+{"message":"one warm sentence inviting the user to choose","options":[{"id":"candidate id","label":"2-4 word angle","reason":"why it fits","tradeoff":"what the user gives up"}]}
+
+User request:
+${JSON.stringify(request)}
+Local conditions:
+${JSON.stringify({ weather, sunset: environment?.sunset })}
+Candidates:
+${JSON.stringify(candidates)}`;
+  const anthropic = getAnthropicClient();
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 700,
+    temperature: TEMPERATURE,
+    system: "You are a collaborative planning agent. Return valid JSON only, without markdown.",
+    messages: [{ role: "user", content: prompt }],
+  });
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock) throw new Error("LLM response contained no text block");
+  return parseLLMJson(textBlock.text);
+}
+
 export const AGENT_CONFIG = { MODEL, TEMPERATURE, MAX_TOKENS };

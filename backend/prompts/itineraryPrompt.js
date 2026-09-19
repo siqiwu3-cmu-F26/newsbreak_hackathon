@@ -32,6 +32,8 @@ function describeRequest(request) {
     `Interests: ${(interests || []).join(", ") || "none specified"}`,
   ];
   if (notes) lines.push(`Notes from user: ${notes}`);
+  if (request.lockedActivityIds?.length) lines.push(`Activities the user locked: ${request.lockedActivityIds.join(", ")}`);
+  if (request.rejectedActivityIds?.length) lines.push(`Activities the user rejected: ${request.rejectedActivityIds.join(", ")}`);
   return lines.join("\n");
 }
 
@@ -99,6 +101,8 @@ export function buildItineraryPrompt({ request, experiences, feedback = [], envi
     JSON.stringify(trimmed),
     "",
     HARD_RULES,
+    ...(request.lockedActivityIds?.length ? [`- You MUST include every locked activity id: ${request.lockedActivityIds.join(", ")}.`] : []),
+    ...(request.rejectedActivityIds?.length ? [`- You MUST NOT include any rejected activity id: ${request.rejectedActivityIds.join(", ")}.`] : []),
     "",
     OUTPUT_FORMAT_SPEC,
   ];
