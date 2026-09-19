@@ -4,7 +4,7 @@ function price(experience) {
   return 'Free';
 }
 
-export default function ReplacementChooser({ target, options, conflict, busy, shorterOnly, onChoose, onCancel, onKeepReplacement, onChooseShorter }) {
+export default function ReplacementChooser({ target, options, conflict, busy, loading, shorterOnly, onChoose, onCancel, onKeepReplacement, onChooseShorter }) {
   if (!target) return null;
 
   return (
@@ -54,7 +54,8 @@ export default function ReplacementChooser({ target, options, conflict, busy, sh
                 );
               })}
             </div>
-            {!options.length && <p className="mt-6 rounded-xl bg-canvas p-4 text-muted">No shorter alternatives are available. Keep the current activity or adjust the day’s end time.</p>}
+            {loading && <p role="status" className="mt-6 text-muted">Loading alternatives...</p>}
+            {!loading && !options.length && <p className="mt-6 rounded-xl bg-canvas p-4 text-muted">No alternatives are available for this selection. Keep the current activity or adjust the day’s end time.</p>}
           </>
         )}
       </section>

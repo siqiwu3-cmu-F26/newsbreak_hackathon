@@ -68,6 +68,17 @@
 
 /* ---------- Timeline ---------- */
 
+.timeline__hint { margin: 12px 0 0; color: var(--it-muted); font-size: 13px; line-height: 1.6; }
+.timeline__controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 12px 0 6px; font-size: 12px; color: var(--it-muted); }
+.timeline__controls > span { margin-right: auto; font-weight: 700; }
+.timeline__controls button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; border: 1px solid var(--it-border); border-radius: 8px; background: var(--it-surface); color: var(--it-text); cursor: pointer; }
+.timeline__controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+.timeline__controls .timeline__grip { padding: 0 10px; touch-action: none; cursor: grab; user-select: none; }
+.timeline__controls .timeline__grip:active { cursor: grabbing; }
+.timeline__item.is-dragging .activity-card { opacity: 0.55; }
+.timeline__item.is-drop-target .activity-card { outline: 2px dashed var(--it-accent); outline-offset: 3px; }
+.timeline__drop-label { margin: 5px 0; font-size: 12px; font-weight: 700; color: var(--it-accent); }
+
 .timeline {
   list-style: none;
   margin: 0;
