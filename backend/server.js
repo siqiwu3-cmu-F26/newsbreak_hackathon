@@ -5,10 +5,12 @@ import express from "express";
 import { initializeDatabase } from "./db/mongo.js";
 import authRouter from "./routes/auth.js";
 import contextRouter from "./routes/context.js";
+import creditsRouter from "./routes/credits.js";
 import experiencesRouter from "./routes/experiences.js";
 import planRouter from "./routes/plan.js";
 import replaceRouter from "./routes/replace.js";
 import replanRouter from "./routes/replan.js";
+import reorderRouter from "./routes/reorder.js";
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
@@ -20,20 +22,23 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "localconnect-backend" });
 });
 
-app.use("/experiences", experiencesRouter);
 app.use("/auth", authRouter);
+app.use("/credits", creditsRouter);
+app.use("/experiences", experiencesRouter);
 app.use("/context", contextRouter);
 app.use("/plan", planRouter);
 app.use("/replace", replaceRouter);
 app.use("/replan", replanRouter);
+app.use("/reorder", reorderRouter);
 
-// Compatibility aliases while the frontend team settles the API prefix.
-app.use("/api/experiences", experiencesRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/credits", creditsRouter);
+app.use("/api/experiences", experiencesRouter);
 app.use("/api/context", contextRouter);
 app.use("/api/plan", planRouter);
 app.use("/api/replace", replaceRouter);
 app.use("/api/replan", replanRouter);
+app.use("/api/reorder", reorderRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });
@@ -45,13 +50,8 @@ app.use((error, _req, res, _next) => {
 });
 
 async function startServer() {
-  if (process.env.MONGODB_URI) {
-    const db = await initializeDatabase();
-    console.log(`Connected to MongoDB database '${db.databaseName}'`);
-  } else {
-    console.warn("MONGODB_URI is not configured; authentication endpoints are unavailable");
-  }
-
+  const db = await initializeDatabase();
+  console.log(`Connected to MongoDB database '${db.databaseName}'`);
   app.listen(port, () => {
     console.log(`LocalConnect backend listening on http://localhost:${port}`);
   });

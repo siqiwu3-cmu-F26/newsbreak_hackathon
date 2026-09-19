@@ -69,6 +69,14 @@ Shared design tokens and classes live in `src/styles.css`: `brand`, `brand-soft`
 
 ## Backend configuration
 
+### Reordering activities
+
+Drag an activity's **Drag** grip to another numbered slot, or use its up/down buttons (also available on mobile). A focused grip supports the up/down arrow keys; Escape cancels an active drag. Budget spinner controls now use $10 steps; manually entered amounts may still include cents.
+
+`POST /reorder` accepts `{ itinerary, activityIds, constraints }`. The backend preserves activity durations, schedules the new order from the planning start time, allows travel and any waiting for opening hours, and recalculates travel estimates and totals. Impossible closing/end-time conflicts return an explanation without dropping activities or changing the displayed plan. Travel remains the existing distance-based estimate, not live directions. Time-specific experiences such as sunset walks should be reviewed after manual rearrangement.
+
+Timeline, map order/pins, travel totals, and saved session all update from the returned itinerary. Replace, rain replan, and reorder are serialized to prevent competing responses; failures leave the prior itinerary intact. Restart the backend after pulling this change to register `/reorder` (or use `npm run dev`).
+
 Optional: copy `.env.example` to `.env.local` and change the backend target.
 
 ```powershell

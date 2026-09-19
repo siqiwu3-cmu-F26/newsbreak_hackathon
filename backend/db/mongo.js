@@ -27,17 +27,46 @@ export async function initializeDatabase() {
   const db = await getDatabase();
   const users = db.collection("users");
   const sessions = db.collection("sessions");
+  const credits = db.collection("creditTransactions");
 
   await Promise.all([
     users.createIndex({ email: 1 }, { unique: true, name: "unique_user_email" }),
+    users.createIndex(
+      { "verification.idHash": 1 },
+      {
+        unique: true,
+        name: "unique_verified_identity",
+        partialFilterExpression: { "verification.idHash": { $type: "string" } }
+      }
+    ),
     users.createIndex({ createdAt: -1 }, { name: "users_by_created_at" }),
     sessions.createIndex({ tokenHash: 1 }, { unique: true, name: "unique_session_token" }),
     sessions.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: "expire_sessions" }),
-    sessions.createIndex({ userId: 1 }, { name: "sessions_by_user" })
+    sessions.createIndex({ userId: 1 }, { name: "sessions_by_user" }),
+    credits.createIndex({ id: 1 }, { unique: true, name: "unique_credit_transaction" }),
+    credits.createIndex({ userId: 1, createdAt: -1 }, { name: "credits_by_user" }),
+    credits.createIndex(
+      { userId: 1, reason: 1 },
+      {
+        unique: true,
+        name: "one_welcome_credit_per_user",
+        partialFilterExpression: { reason: "welcome" }
+      }
+    )
   ]);
 
   await db.command({ ping: 1 });
   return db;
+}
+
+export async function withTransaction(work) {
+  const db = await getDatabase();
+  const session = client.startSession();
+  try {
+    return await session.withTransaction(() => work(db, session));
+  } finally {
+    await session.endSession();
+  }
 }
 
 export async function closeDatabase() {
