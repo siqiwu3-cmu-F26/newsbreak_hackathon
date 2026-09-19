@@ -59,10 +59,12 @@ export function AuthProvider({ children }) {
   const verifyAddress = useCallback((details) => runVerification(authApi.verifyAddress, details), [runVerification]);
 
   const setBalance = useCallback((balance) => setState((current) => ({ ...current, balance })), []);
+  // Applies an updated user returned by the server (e.g. after editing the profile).
+  const updateUser = useCallback((user) => setState((current) => ({ ...current, user })), []);
 
   const value = useMemo(
-    () => ({ ...state, login, signup, logout, verifyIdentity, verifyAddress, setBalance }),
-    [state, login, signup, logout, verifyIdentity, verifyAddress, setBalance],
+    () => ({ ...state, login, signup, logout, verifyIdentity, verifyAddress, setBalance, updateUser }),
+    [state, login, signup, logout, verifyIdentity, verifyAddress, setBalance, updateUser],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

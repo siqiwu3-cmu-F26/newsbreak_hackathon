@@ -25,6 +25,8 @@ test("fallback is complete and stays within the demo budget", () => {
   assert.ok(itinerary.activities.some((item) => item.type === "community"));
   assert.ok(itinerary.totals.cash <= 80);
   assert.equal(itinerary.activities.at(-1).travelToNext, 0);
+  assert.ok(itinerary.agentActions.checkedExperiences >= 12);
+  assert.ok(itinerary.agentActions.communityConnections >= 1);
 });
 
 test("agent plan validator rejects unknown ids", () => {

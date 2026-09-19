@@ -8,7 +8,7 @@ function creditLabel(n) {
   return `${n} Time Credit${n === 1 ? "" : "s"}`;
 }
 
-export default function ActivityCard({ activity, onReplace, replacing = false, disabled = false }) {
+export default function ActivityCard({ activity, onReplace, onRequest, bookingStatus, replacing = false, disabled = false }) {
   const {
     name,
     type,
@@ -68,14 +68,18 @@ export default function ActivityCard({ activity, onReplace, replacing = false, d
       )}
 
       {onReplace && (
-        <button
-          type="button"
-          className="replace-btn"
-          onClick={onReplace}
-          disabled={replacing || disabled}
-        >
-          {replacing ? "Replacing…" : "Replace"}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="replace-btn"
+            onClick={onReplace}
+            disabled={replacing || disabled}
+          >
+            {replacing ? "Replacing…" : "Replace"}
+          </button>
+          {isCommunity && !bookingStatus && <button type="button" className="button-primary" onClick={() => onRequest?.(activity)} disabled={disabled}>Request host</button>}
+          {isCommunity && bookingStatus === 'awaiting_host' && <span className="rounded-full bg-brand-soft px-3 py-2 text-xs font-semibold text-brand">✓ Requested · Awaiting {host}</span>}
+        </div>
       )}
     </article>
   );

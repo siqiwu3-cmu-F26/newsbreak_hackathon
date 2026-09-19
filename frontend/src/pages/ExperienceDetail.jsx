@@ -1,18 +1,39 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import CreditBadge from "../components/CreditBadge";
 import MapView from "../components/MapView";
 import communityExperiences from "../data/communityExperiences";
+import { getExperiences } from "../services/api.js";
 import "../person5.css";
 
 export default function ExperienceDetail({ experienceId, onBack, onAddToPlan }) {
   const navigate = useNavigate();
   const params = useParams();
   const [added, setAdded] = useState(false);
-  const experience = useMemo(
-    () => communityExperiences.find((item) => item.id === (experienceId || params.experienceId)) || communityExperiences[0],
-    [experienceId, params.experienceId],
-  );
+  const selectedId = experienceId || params.experienceId;
+  const fallback = useMemo(() => communityExperiences.find((item) => item.id === selectedId), [selectedId]);
+  const [liveExperience, setLiveExperience] = useState(null);
+  const experience = liveExperience || fallback || communityExperiences[0];
+
+  useEffect(() => {
+    let active = true;
+    getExperiences()
+      .then((items) => {
+        const found = items.find((item) => item.id === selectedId);
+        if (active && found) setLiveExperience({
+          ...(communityExperiences.find((item) => item.id === found.id) || {}),
+          capacity: 4,
+          location: "Palo Alto, CA",
+          rating: 5,
+          reviews: 0,
+          tags: ["Verified host", found.indoor ? "Indoor" : "Outdoor"],
+          accent: found.category,
+          ...found,
+        });
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [selectedId]);
 
   return (
     <main className="experience-detail">
@@ -48,7 +69,7 @@ export default function ExperienceDetail({ experienceId, onBack, onAddToPlan }) 
           </div>
 
           <div className="detail-tags">
-            {experience.tags.map((tag) => <span key={tag}>✓ {tag}</span>)}
+            {(experience.tags || ["Verified host"]).map((tag) => <span key={tag}>✓ {tag}</span>)}
           </div>
 
           <div className="detail-host">
