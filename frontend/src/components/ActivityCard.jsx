@@ -8,7 +8,7 @@ function creditLabel(n) {
   return `${n} Time Credit${n === 1 ? "" : "s"}`;
 }
 
-export default function ActivityCard({ activity, onReplace, replacing = false }) {
+export default function ActivityCard({ activity, onReplace, replacing = false, disabled = false }) {
   const {
     name,
     type,
@@ -16,6 +16,7 @@ export default function ActivityCard({ activity, onReplace, replacing = false })
     location,
     indoor,
     startTime,
+    endTime,
     duration,
     cost,
     credits,
@@ -35,7 +36,7 @@ export default function ActivityCard({ activity, onReplace, replacing = false })
         replacing ? "is-replacing" : "",
       ].join(" ")}
     >
-      <div className="activity-card__time">{formatTime(startTime)}</div>
+      <div className="activity-card__time">{formatTime(startTime)}{endTime ? ` – ${formatTime(endTime)}` : ''}</div>
 
       <span className={`badge ${isCommunity ? "badge--community" : "badge--place"}`}>
         {isCommunity ? "Community Experience" : "Local Place"}
@@ -71,7 +72,7 @@ export default function ActivityCard({ activity, onReplace, replacing = false })
           type="button"
           className="replace-btn"
           onClick={onReplace}
-          disabled={replacing}
+          disabled={replacing || disabled}
         >
           {replacing ? "Replacing…" : "Replace"}
         </button>

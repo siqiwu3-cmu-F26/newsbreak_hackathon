@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import MapView from '../components/MapView.jsx';
 import WeatherContext from '../components/WeatherContext.jsx';
@@ -7,7 +7,7 @@ import { getDemoItinerary } from '../data/demoItinerary.js';
 import { toDisplayPlan } from '../lib/itinerary.js';
 import { DEMO_REQUEST } from '../lib/planRequest.js';
 import { scheduleConflict } from '../lib/replacement.js';
-import { getEnvironmentContext, getExperiences, replaceItinerary, replanItinerary } from '../services/api.js';
+import { getEnvironmentContext, getExperiences, replaceItinerary, replanItinerary, reorderItinerary } from '../services/api.js';
 import Itinerary from './Itinerary.jsx';
 
 const sourceMessages = {
@@ -24,25 +24,37 @@ const FALLBACK_ENVIRONMENT = {
   sunset: '7:09 PM',
 };
 
-export default function PlanResult({ result }) {
+export default function PlanResult({ result, onPlanChange }) {
   const [search] = useSearchParams();
   const mock = search.get('mock') === '1';
   const selected = mock
-    ? { itinerary: getDemoItinerary(), request: DEMO_REQUEST, source: 'demo', id: 'demo-preview' }
+    ? (result?.source === 'demo' ? result : { itinerary: getDemoItinerary(), request: DEMO_REQUEST, source: 'demo', id: 'demo-preview' })
     : result;
   const [itinerary, setItinerary] = useState(selected?.itinerary ?? null);
   const [environment, setEnvironment] = useState(FALLBACK_ENVIRONMENT);
   const [notice, setNotice] = useState('');
-  const [replanning, setReplanning] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const operationRef = useRef(null);
   const [replacementTarget, setReplacementTarget] = useState(null);
   const [replacementOptions, setReplacementOptions] = useState([]);
   const [replacementConflict, setReplacementConflict] = useState(null);
   const [replacementBusy, setReplacementBusy] = useState(false);
   const [shorterOnly, setShorterOnly] = useState(false);
+  const [replacementLoading, setReplacementLoading] = useState(false);
+  const optionsRequestRef = useRef(null);
 
   useEffect(() => {
     setItinerary(selected?.itinerary ?? null);
     setNotice('');
+    setBusy(false);
+    setReplacementTarget(null);
+    setReplacementConflict(null);
+    setReplacementBusy(false);
+    setReplacementLoading(false);
+    return () => {
+      operationRef.current?.abort(); operationRef.current = null;
+      optionsRequestRef.current?.abort(); optionsRequestRef.current = null;
+    };
   }, [selected?.id]);
 
   useEffect(() => {
@@ -82,14 +94,42 @@ export default function PlanResult({ result }) {
   const request = isSample ? DEMO_REQUEST : selected.request;
   const plan = toDisplayPlan(itinerary, request);
 
+  async function updatePlan(action, successMessage) {
+    if (operationRef.current) return;
+    const controller = new AbortController();
+    operationRef.current = controller;
+    setBusy(true);
+    setNotice('Updating your itinerary...');
+    try {
+      const updated = await action(controller.signal);
+      if (controller.signal.aborted) return;
+      setItinerary(updated);
+      onPlanChange?.({ ...selected, itinerary: updated });
+      setNotice(successMessage);
+      return true;
+    } catch (error) {
+      if (!controller.signal.aborted) setNotice(`${error.message || 'The update failed.'} Your current plan is unchanged.`);
+    } finally {
+      if (operationRef.current === controller) {
+        operationRef.current = null;
+        setBusy(false);
+      }
+    }
+  }
+
   async function handleReplace(activity) {
+    if (operationRef.current || replacementTarget) return;
+    const controller = new AbortController();
+    optionsRequestRef.current = controller;
+    setReplacementLoading(true);
     setNotice('');
     setReplacementTarget(activity);
     setReplacementOptions([]);
     setReplacementConflict(null);
     setShorterOnly(false);
     try {
-      const catalog = await getExperiences();
+      const catalog = await getExperiences({ signal: controller.signal });
+      if (controller.signal.aborted) return;
       const used = new Set(itinerary.activities.map((item) => item.id));
       const ranked = catalog
         .filter((item) => !used.has(item.id))
@@ -98,13 +138,22 @@ export default function PlanResult({ result }) {
           || a.cost - b.cost);
       setReplacementOptions(ranked.slice(0, 3));
     } catch {
+      if (controller.signal.aborted) return;
       setReplacementTarget(null);
       setNotice('We could not load alternatives. Your current plan is unchanged.');
+    } finally {
+      if (optionsRequestRef.current === controller) {
+        optionsRequestRef.current = null;
+        setReplacementLoading(false);
+      }
     }
   }
 
   function closeReplacement() {
     if (replacementBusy) return;
+    optionsRequestRef.current?.abort();
+    optionsRequestRef.current = null;
+    setReplacementLoading(false);
     setReplacementTarget(null);
     setReplacementConflict(null);
     setShorterOnly(false);
@@ -129,18 +178,16 @@ export default function PlanResult({ result }) {
   }
 
   async function applyReplacement(option = replacementConflict?.replacement) {
-    if (!option || replacementBusy) return;
+    if (!option || replacementBusy || operationRef.current) return;
     setReplacementBusy(true);
     try {
       const previousName = replacementTarget.name;
-      const updated = await replaceItinerary(itinerary, replacementTarget.id || replacementTarget.experienceId, request, option.id);
-      setItinerary(updated);
-      setReplacementTarget(null);
-      setReplacementConflict(null);
-      setShorterOnly(false);
-      setNotice(`${previousName} was replaced with ${option.name}. The schedule and totals were updated.`);
-    } catch {
-      setNotice('We could not apply that replacement. Your current plan is unchanged.');
+      const applied = await updatePlan(signal => replaceItinerary(itinerary, replacementTarget.id || replacementTarget.experienceId, request, option.id, { signal }), `${previousName} was replaced with ${option.name}. The schedule and totals were updated.`);
+      if (applied) {
+        setReplacementTarget(null);
+        setReplacementConflict(null);
+        setShorterOnly(false);
+      }
     } finally {
       setReplacementBusy(false);
     }
@@ -153,25 +200,22 @@ export default function PlanResult({ result }) {
   }
 
   async function handleRainReplan() {
-    if (replanning) return;
-    setReplanning(true);
-    setNotice('');
-    try {
-      const hadOutdoorStop = itinerary.activities.some((activity) => !activity.indoor);
-      const updated = await replanItinerary(itinerary, 'rain', request);
-      setItinerary(updated);
-      setEnvironment((current) => ({
-        ...current,
-        weather: { ...current.weather, condition: 'rain' },
-      }));
-      setNotice(hadOutdoorStop
-        ? 'Plan updated for rain. Outdoor stops were replaced with indoor options.'
-        : 'This plan was already rain-ready, so every stop stayed indoors.');
-    } catch {
-      setNotice('Weather replan is unavailable. Your current plan is unchanged.');
-    } finally {
-      setReplanning(false);
-    }
+    if (replacementTarget) return;
+    return updatePlan(async signal => {
+      const updated = await replanItinerary(itinerary, 'rain', request, { signal });
+      if (!signal.aborted) setEnvironment(current => ({ ...current, weather: { ...current.weather, condition: 'rain' } }));
+      return updated;
+    }, 'Your indoor plan and map are updated for rain.');
+  }
+
+  async function handleReorder(fromId, toId) {
+    if (fromId === toId || replacementTarget) return;
+    const ids = itinerary.activities.map(activity => activity.id);
+    const from = ids.indexOf(fromId);
+    const to = ids.indexOf(toId);
+    if (from < 0 || to < 0) return;
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    return updatePlan(signal => reorderItinerary(itinerary, ids, request, { signal }), 'Order saved. Activity times, travel estimates, totals, and map have been updated. Check time-specific experiences such as sunset walks before heading out.');
   }
 
   return (
@@ -193,13 +237,13 @@ export default function PlanResult({ result }) {
         sunset={environment.sunset}
         location={environment.location?.city || 'Palo Alto'}
         onRainReplan={handleRainReplan}
-        busy={replanning}
+        busy={busy || Boolean(replacementTarget)}
       />
 
       {notice && <p role="status" className="mt-4 rounded-xl border border-line bg-white p-3 text-sm text-muted">{notice}</p>}
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,640px)_minmax(300px,1fr)]">
-        <Itinerary key={`${selected.id}-${itinerary.summary}`} plan={plan} onReplace={handleReplace} />
+        <Itinerary key={selected.id} plan={plan} onReplace={handleReplace} onReorder={handleReorder} busy={busy || Boolean(replacementTarget)} />
         <div className="lg:sticky lg:top-6">
           <MapView activities={itinerary.activities} />
         </div>
@@ -209,6 +253,7 @@ export default function PlanResult({ result }) {
         options={replacementOptions}
         conflict={replacementConflict}
         busy={replacementBusy}
+        loading={replacementLoading}
         shorterOnly={shorterOnly}
         onChoose={chooseReplacement}
         onCancel={closeReplacement}
