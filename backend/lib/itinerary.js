@@ -24,7 +24,9 @@ export function normalizePlanRequest(body = {}) {
     location: body.location && typeof body.location === "object"
       ? body.location
       : { city: "Palo Alto", lat: 37.4419, lng: -122.143 },
-    notes: typeof body.notes === "string" ? body.notes : ""
+    notes: typeof body.notes === "string" ? body.notes : "",
+    lockedActivityIds: stringArray(body.lockedActivityIds),
+    rejectedActivityIds: stringArray(body.rejectedActivityIds)
   };
 }
 
@@ -90,6 +92,12 @@ export function validateAgentPlan(rawPlan, request, environment) {
 
   if (cash > request.budget) errors.push(`cash total ${cash} exceeds budget ${request.budget}`);
   if (communityCount === 0) errors.push("plan must include at least one community experience");
+  for (const id of request.lockedActivityIds || []) {
+    if (!seen.has(id)) errors.push(`locked activity ${id} must be included`);
+  }
+  for (const id of request.rejectedActivityIds || []) {
+    if (seen.has(id)) errors.push(`rejected activity ${id} must not be included`);
+  }
   return errors;
 }
 
@@ -143,7 +151,7 @@ export function buildFallback(request = normalizePlanRequest()) {
   );
 }
 
-export function replaceActivity(itinerary, activityId, constraints = {}) {
+export function replaceActivity(itinerary, activityId, constraints = {}, replacementId) {
   const activities = Array.isArray(itinerary?.activities) ? itinerary.activities : [];
   const index = activities.findIndex((item) => item.id === activityId);
   if (index < 0) return itinerary;
@@ -165,7 +173,10 @@ export function replaceActivity(itinerary, activityId, constraints = {}) {
     return budgetPenaltyA - budgetPenaltyB || Math.abs(a.duration - original.duration) - Math.abs(b.duration - original.duration) || a.cost - b.cost;
   });
 
-  const replacement = candidates[0];
+  const requestedReplacement = replacementId && !usedIds.has(replacementId)
+    ? experienceById.get(replacementId)
+    : null;
+  const replacement = requestedReplacement || candidates[0];
   if (!replacement) return itinerary;
 
   const endTime = constraints.endTime || itinerary?.constraints?.endTime || "23:59";
@@ -357,4 +368,8 @@ function positiveNumber(value, fallback) {
 function nonNegativeNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) && number >= 0 ? number : fallback;
+}
+
+function stringArray(value) {
+  return Array.isArray(value) ? [...new Set(value.filter((item) => typeof item === "string" && item))] : [];
 }

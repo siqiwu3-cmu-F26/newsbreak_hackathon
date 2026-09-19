@@ -6,6 +6,7 @@ import Community from './pages/Community.jsx';
 import ExperienceDetail from './pages/ExperienceDetail.jsx';
 import OfferSkill from './pages/OfferSkill.jsx';
 import PlanResult from './pages/PlanResult.jsx';
+import PlanTogether from './pages/PlanTogether.jsx';
 import usePlannerSession from './hooks/usePlannerSession.js';
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<Home draft={draft} onDraftChange={setDraft} onPlanReady={setResult} />} />
+        <Route path="/plan-together" element={<PlanTogether onPlanReady={setResult} />} />
         <Route path="/itinerary" element={<PlanResult result={result} onPlanChange={setResult} />} />
         <Route path="/community" element={<Community />} />
         <Route path="/experiences/:experienceId" element={<ExperienceDetail />} />

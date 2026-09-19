@@ -6,6 +6,21 @@ export default function Timeline({ activities, onReplace, replacingId, onReorder
   const gestureRef = useRef(null);
   const listRef = useRef(null);
 
+  // Capture pointer events at the list so dragging remains attached even when
+  // the pointer moves from the grip's text onto another card or an SVG element.
+  useEffect(() => {
+    const list = listRef.current;
+    const down = event => {
+      const grip = event.target.closest('.timeline__grip');
+      if (grip && list.contains(grip)) beginDrag(event, grip.closest('[data-slot-id]').dataset.slotId, grip);
+    };
+    const handlers = { pointerdown: down, pointermove: moveDrag, pointerup: endDrag, pointercancel: cancelDrag, lostpointercapture: cancelDrag };
+    for (const [type, handler] of Object.entries(handlers)) list.addEventListener(type, handler, true);
+    return () => {
+      for (const [type, handler] of Object.entries(handlers)) list.removeEventListener(type, handler, true);
+    };
+  }, [busy, onReorder]);
+
   function findTarget(gesture) {
     const target = document.elementFromPoint(gesture.x, gesture.y)?.closest('[data-slot-id]');
     gesture.toId = target && listRef.current?.contains(target) ? target.dataset.slotId : gesture.id;
@@ -29,11 +44,11 @@ export default function Timeline({ activities, onReplace, replacingId, onReorder
 
   function cancelDrag() { gestureRef.current = null; setDrag(null); }
 
-  function beginDrag(event, id) {
+  function beginDrag(event, id, grip) {
     if (busy || event.button !== 0 || !event.isPrimary) return;
-    event.currentTarget.focus();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    gestureRef.current = { id, toId: id, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, started: false };
+    grip.focus();
+    grip.setPointerCapture(event.pointerId);
+    gestureRef.current = { id, toId: id, grip, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, started: false };
   }
 
   function moveDrag(event) {
@@ -47,7 +62,7 @@ export default function Timeline({ activities, onReplace, replacingId, onReorder
 
   function endDrag(event) {
     const gesture = gestureRef.current;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (gesture?.grip.hasPointerCapture(event.pointerId)) gesture.grip.releasePointerCapture(event.pointerId);
     cancelDrag();
     if (gesture?.started && gesture.id !== gesture.toId && !busy) onReorder?.(gesture.id, gesture.toId);
   }
@@ -64,8 +79,6 @@ export default function Timeline({ activities, onReplace, replacingId, onReorder
               <span>Slot {index + 1}</span>
               <button type="button" className="timeline__grip" disabled={busy}
                 aria-label={`Move ${activity.name}. Drag to a slot or use up and down arrow keys.`}
-                onPointerDown={event => beginDrag(event, activity.experienceId)} onPointerMove={moveDrag}
-                onPointerUp={endDrag} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}
                 onKeyDown={event => {
                   if (event.key === 'Escape') { event.preventDefault(); cancelDrag(); return; }
                   const offset = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;

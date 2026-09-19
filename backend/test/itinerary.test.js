@@ -50,6 +50,29 @@ test("replace swaps exactly one activity and recalculates totals", () => {
   assert.equal(replaced.activities.at(-1).travelToNext, 0);
 });
 
+test("replace honors an explicitly selected alternative", () => {
+  const original = buildFallback(normalizePlanRequest());
+  const replaced = replaceActivity(original, "community_01", {}, "community_03");
+  assert.equal(replaced.activities[0].id, "community_03");
+});
+
+test("agent validator enforces locked and rejected choices", () => {
+  const request = normalizePlanRequest({
+    lockedActivityIds: ["community_02"],
+    rejectedActivityIds: ["community_01"],
+  });
+  const errors = validateAgentPlan({
+    summary: "Wrong choices",
+    activities: [
+      { id: "community_01", startTime: "15:00", endTime: "16:00" },
+      { id: "business_01", startTime: "16:12", endTime: "17:02" },
+      { id: "business_02", startTime: "17:15", endTime: "18:30" },
+    ],
+  }, request);
+  assert.ok(errors.some((error) => error.includes("locked activity community_02")));
+  assert.ok(errors.some((error) => error.includes("rejected activity community_01")));
+});
+
 test("rain replan removes outdoor activities", () => {
   const original = buildFallback(normalizePlanRequest());
   const replanned = replanForRain(original);

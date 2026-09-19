@@ -1,9 +1,24 @@
 import test from 'node:test';
+import { reorderItinerary } from '../src/services/api.js';
 import assert from 'node:assert/strict';
 import { createDraft, DEMO_REQUEST, toPlanRequest, validateDraft } from '../src/lib/planRequest.js';
 import { getDemoItinerary } from '../src/data/demoItinerary.js';
 import { isItinerary, toDisplayPlan } from '../src/lib/itinerary.js';
-import { createPlan, getEnvironmentContext, replaceItinerary, replanItinerary } from '../src/services/api.js';
+import { scheduleConflict } from '../src/lib/replacement.js';
+import { createAnchorOptions, createPlan, getEnvironmentContext, getExperiences, replaceItinerary, replanItinerary } from '../src/services/api.js';
+
+test('reordering sends the complete order and surfaces schedule conflicts', async () => {
+  const itinerary = getDemoItinerary();
+  const ids = itinerary.activities.map(activity => activity.id).reverse();
+  await reorderItinerary(itinerary, ids, DEMO_REQUEST, { fetchImpl: async (url, options) => {
+    assert.equal(url, '/api/reorder');
+    assert.deepEqual(JSON.parse(options.body), { itinerary, activityIds: ids, constraints: DEMO_REQUEST });
+    return { ok: true, json: async () => itinerary };
+  } });
+  await assert.rejects(reorderItinerary(itinerary, ids, DEMO_REQUEST, { fetchImpl: async () => ({
+    ok: false, status: 422, json: async () => ({ error: 'This order would end after 20:00.' }),
+  }) }), /end after 20:00/);
+});
 
 test('form emits exactly the PlanRequest contract, with numbers and trimmed notes', () => {
   const draft = createDraft(DEMO_REQUEST);
@@ -134,4 +149,45 @@ test('replace, rain replan, and local context use their integration endpoints', 
   assert.equal(calls[1].body.condition, 'rain');
   assert.match(calls[2].url, /^\/api\/context\?/);
   assert.equal(context.weather.condition, 'clear');
+});
+
+test('collaborative planning loads anchors and sends the selected replacement', async () => {
+  const itinerary = getDemoItinerary();
+  const calls = [];
+  const optionsResponse = {
+    message: 'Pick one',
+    options: [
+      { id: 'one', name: 'One' },
+      { id: 'two', name: 'Two' },
+      { id: 'three', name: 'Three' },
+    ],
+  };
+  const fetchImpl = async (url, options = {}) => {
+    calls.push({ url, body: options.body && JSON.parse(options.body) });
+    if (url === '/api/plan/options') return { ok: true, json: async () => optionsResponse };
+    if (url === '/api/experiences') return { ok: true, json: async () => optionsResponse.options };
+    return { ok: true, json: async () => itinerary };
+  };
+
+  const anchors = await createAnchorOptions(DEMO_REQUEST, { fetchImpl });
+  const experiences = await getExperiences({ fetchImpl });
+  await replaceItinerary(itinerary, 'community_01', DEMO_REQUEST, 'community_03', { fetchImpl });
+
+  assert.equal(anchors.options.length, 3);
+  assert.equal(experiences.length, 3);
+  assert.equal(calls[2].body.replacementId, 'community_03');
+});
+
+test('replacement conflict identifies the later stop that no longer fits', () => {
+  const itinerary = {
+    activities: [
+      { id: 'a', name: 'Anchor', endTime: '17:00' },
+      { id: 'b', name: 'Dinner', endTime: '18:20' },
+      { id: 'c', name: 'Dessert', endTime: '19:45' },
+    ],
+  };
+  const conflict = scheduleConflict(itinerary, 'a', 60, { id: 'longer', name: 'Longer option', duration: 90 }, '20:00');
+  assert.equal(conflict.extraMinutes, 30);
+  assert.deepEqual(conflict.removedNames, ['Dessert']);
+  assert.equal(scheduleConflict(itinerary, 'a', 60, { duration: 60 }, '20:00'), null);
 });

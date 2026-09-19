@@ -4,7 +4,7 @@ import GroupSelector from '../components/GroupSelector.jsx';
 import InterestSelector from '../components/InterestSelector.jsx';
 import BudgetInput from '../components/BudgetInput.jsx';
 import { createDraft, DEMO_REQUEST, toPlanRequest, validateDraft } from '../lib/planRequest.js';
-import { createPlan } from '../services/api.js';
+import { createAnchorOptions, createPlan } from '../services/api.js';
 
 export default function Home({ draft, onDraftChange, onPlanReady }) {
   const navigate = useNavigate();
@@ -45,11 +45,18 @@ export default function Home({ draft, onDraftChange, onPlanReady }) {
     const controller = new AbortController();
     requestRef.current = controller;
     const request = toPlanRequest(draft);
+    const quickPlan = event.nativeEvent.submitter?.value === 'quick' || mock;
     try {
-      const result = await createPlan(request, { mock, signal: controller.signal });
-      if (controller.signal.aborted) return;
-      onPlanReady({ ...result, request, id: crypto.randomUUID() });
-      navigate(mock ? '/itinerary?mock=1' : '/itinerary');
+      if (quickPlan) {
+        const result = await createPlan(request, { mock, signal: controller.signal });
+        if (controller.signal.aborted) return;
+        onPlanReady({ ...result, request, id: crypto.randomUUID() });
+        navigate(mock ? '/itinerary?mock=1' : '/itinerary');
+      } else {
+        const choices = await createAnchorOptions(request, { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        navigate('/plan-together', { state: { request, ...choices } });
+      }
     } catch {
       if (controller.signal.aborted) setNotice('Planning canceled. Your preferences are saved.');
       else setNotice('Something went wrong. Your preferences are saved; please try again.');
@@ -127,14 +134,15 @@ export default function Home({ draft, onDraftChange, onPlanReady }) {
 
         {Object.keys(errors).length > 0 && <p role="alert" className="field-error mt-5">Please check the highlighted fields before planning.</p>}
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <button type="submit" disabled={loading} className="button-primary w-full sm:w-auto">
+          <button type="submit" name="planningMode" value="together" disabled={loading} className="button-primary w-full sm:w-auto">
             {loading && <span aria-hidden="true" className="mr-2 size-4 animate-spin rounded-full border-2 border-white/40 border-t-white motion-reduce:animate-none" />}
-            {loading ? 'Planning your day...' : mock ? 'View Sample Plan' : 'Plan My Day'}
+            {loading ? 'Thinking of good directions...' : mock ? 'View Sample Plan' : 'Plan With Me'}
           </button>
+          {!mock && <button type="submit" name="planningMode" value="quick" disabled={loading} className="button-secondary w-full sm:w-auto">Quick plan</button>}
           {loading && <button type="button" onClick={() => requestRef.current?.abort()} className="text-button">Cancel</button>}
         </div>
         <p role="status" className="mt-3 min-h-5 text-sm leading-relaxed text-muted">
-          {loading ? 'Finding local experiences. If planning takes more than 15 seconds, we will show a labelled sample.' : notice || 'Your preferences stay saved in this browser tab.'}
+          {loading ? 'Finding three different directions for your day.' : notice || 'Plan With Me lets you choose an anchor first. Quick plan builds the whole day at once.'}
         </p>
       </form>
       <div className="mt-6 flex flex-wrap gap-3">
