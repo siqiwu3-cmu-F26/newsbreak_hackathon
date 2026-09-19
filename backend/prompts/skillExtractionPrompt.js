@@ -23,15 +23,19 @@ const OUTPUT_FORMAT_SPEC = `Respond with exactly this JSON shape, nothing else:
   "name": "short, appealing listing title (roughly 4-8 words)",
   "category": "one of: ${CATEGORIES.join(", ")}",
   "indoor": true or false,
-  "description": "a clean 1-2 sentence rewrite of what they offer, in third person"
+  "description": "a warm, inviting 1-2 sentence rewrite of what they offer, in third person"
 }`;
 
 const HARD_RULES = `Hard rules:
-- "category" must be exactly one of: ${CATEGORIES.join(", ")}. Never invent a new category.
+- "category" must be exactly one of: ${CATEGORIES.join(", ")}. Never invent a new category. Pick
+  the single best fit — if more than one could apply, choose the one a neighbor browsing listings
+  would search under first.
 - Do not include duration, cost, credits, or capacity in your response — the app fills those in from
   the form, not from your guess.
-- Keep "description" faithful to what the person actually said. Don't invent skills, credentials, or
-  claims they didn't make.`;
+- "description" must stay faithful to what the person actually said — never invent skills,
+  credentials, or claims they didn't make — but you may smooth the phrasing, cut filler, and make it
+  sound like a friendly neighborhood bulletin post: warm, concrete, inviting. Not a formal brochure,
+  not a resume. Keep it to 1-2 short sentences.`;
 
 /**
  * Build the {system, user} messages sent to the LLM.

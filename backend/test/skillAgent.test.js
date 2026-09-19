@@ -12,6 +12,7 @@ test("normalizeSkillListing passes through a well-formed LLM response", () => {
   assert.deepEqual(listing, {
     name: "Backyard Pasta Night",
     category: "food",
+    categoryLabel: "Food",
     indoor: true,
     description: "Learn to make fresh pasta.",
   });
@@ -20,6 +21,7 @@ test("normalizeSkillListing passes through a well-formed LLM response", () => {
 test("normalizeSkillListing coerces an invalid category instead of throwing", () => {
   const listing = normalizeSkillListing({ name: "Test", category: "sports", indoor: true, description: "x" }, "fallback text");
   assert.equal(listing.category, "creative");
+  assert.equal(listing.categoryLabel, "Creative");
   assert.ok(SKILL_CATEGORIES.includes(listing.category));
 });
 
@@ -37,13 +39,16 @@ test("normalizeSkillListing handles a completely malformed response", () => {
 });
 
 test("fallbackSkillListing never throws and always returns a valid category", () => {
-  assert.ok(SKILL_CATEGORIES.includes(fallbackSkillListing("I teach basic home repairs").category));
+  const listing = fallbackSkillListing("I teach basic home repairs");
+  assert.ok(SKILL_CATEGORIES.includes(listing.category));
+  assert.equal(listing.categoryLabel, "Creative");
   assert.equal(fallbackSkillListing("").name, "A community experience");
 });
 
-test("buildSkillExtractionPrompt never asks the LLM for numbers", () => {
+test("buildSkillExtractionPrompt never asks the LLM for numbers, and asks for a friendly tone", () => {
   const prompt = buildSkillExtractionPrompt({ description: "I teach yoga", duration: 45, groupSize: 3 });
   assert.match(prompt.user, /do not include duration, cost, credits, or capacity/i);
+  assert.match(prompt.user, /friendly neighborhood bulletin/i);
   assert.match(prompt.system, /JSON only/i);
 });
 

@@ -45,7 +45,7 @@ const VALID_CATEGORIES = new Set(SKILL_CATEGORIES);
  * @param {string} params.description - the poster's own freeform text
  * @param {number} params.duration - session length in minutes
  * @param {number} params.groupSize - max guests
- * @returns {Promise<{name: string, category: string, indoor: boolean, description: string}>}
+ * @returns {Promise<{name: string, category: string, categoryLabel: string, indoor: boolean, description: string}>}
  */
 export async function extractSkillListing({ description, duration, groupSize }) {
   if (!description || !description.trim()) {
@@ -73,6 +73,16 @@ export async function extractSkillListing({ description, duration, groupSize }) 
 }
 
 /**
+ * Display label for a category, matching the app's existing convention
+ * (frontend/src/components/InterestSelector.jsx just capitalizes the first
+ * letter) rather than inventing a new label style. Deterministic, not
+ * LLM-guessed, so the UI always gets a valid label to show.
+ */
+function categoryLabel(category) {
+  return category.charAt(0).toUpperCase() + category.slice(1);
+}
+
+/**
  * Never trust the LLM's shape/category blindly (same philosophy as
  * validateAgentPlan in lib/itinerary.js) — coerce to safe defaults instead
  * of throwing, since this is a single-shot preview and the demo shouldn't
@@ -87,7 +97,7 @@ export function normalizeSkillListing(parsed, originalDescription) {
     typeof parsed?.description === "string" && parsed.description.trim()
       ? parsed.description.trim()
       : originalDescription.trim();
-  return { name, category, indoor, description };
+  return { name, category, categoryLabel: categoryLabel(category), indoor, description };
 }
 
 /** Deterministic fallback if the LLM call fails outright — same
@@ -98,6 +108,7 @@ export function fallbackSkillListing(description) {
   return {
     name: firstWords ? `Learn: ${firstWords}` : "A community experience",
     category: "creative",
+    categoryLabel: categoryLabel("creative"),
     indoor: true,
     description: text || "A community experience.",
   };
