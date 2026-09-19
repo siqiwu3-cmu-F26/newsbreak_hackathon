@@ -6,6 +6,7 @@ import Community from './pages/Community.jsx';
 import ExperienceDetail from './pages/ExperienceDetail.jsx';
 import OfferSkill from './pages/OfferSkill.jsx';
 import PlanResult from './pages/PlanResult.jsx';
+import PlanTogether from './pages/PlanTogether.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
 import Login from './pages/Login.jsx';
 import Verify from './pages/Verify.jsx';
@@ -25,6 +26,7 @@ export default function App() {
           {/* Everything below needs a signed-in user whose identity and address are verified. */}
           <Route element={<RequireAuth verified />}>
             <Route index element={<Home draft={draft} onDraftChange={setDraft} onPlanReady={setResult} />} />
+            <Route path="/plan-together" element={<PlanTogether onPlanReady={setResult} />} />
             <Route path="/itinerary" element={<PlanResult result={result} />} />
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/community" element={<Community />} />
