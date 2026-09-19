@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import CreditBadge from "../components/CreditBadge";
 import { extractSkillListing } from "../services/api.js";
+import { publishSkill } from "../services/auth.js";
 import "../person5.css";
 
 function titleFromDescription(description) {
@@ -14,16 +15,18 @@ function titleFromDescription(description) {
   if (/repair|electric|fix/i.test(text)) return "A Helping Hand with Home Repairs";
   return text.split(/\s+/).slice(0, 8).join(" ");
 }
-export default function OfferSkill({ onBack, onPublish }) {
+
+export default function OfferSkill({ onBack }) {
   const navigate = useNavigate();
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState(60);
   const [groupSize, setGroupSize] = useState(4);
   const [generated, setGenerated] = useState(false);
-  const [published, setPublished] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [aiListing, setAiListing] = useState(null); // { name, category, categoryLabel, indoor, description }
   const [usedFallback, setUsedFallback] = useState(false);
+  const [error, setError] = useState("");
   const fallbackTitle = useMemo(() => titleFromDescription(description), [description]);
   const previewTitle = aiListing?.name || fallbackTitle;
   const previewDescription = aiListing?.description || description;
@@ -31,14 +34,15 @@ export default function OfferSkill({ onBack, onPublish }) {
   function updateDescription(value) {
     setDescription(value);
     setGenerated(false);
-    setPublished(false);
     setAiListing(null);
     setUsedFallback(false);
+    setError("");
   }
 
   async function handleGenerate() {
     setGenerating(true);
     setUsedFallback(false);
+    setError("");
     try {
       const listing = await extractSkillListing({ description, duration, groupSize });
       setAiListing(listing);
@@ -53,6 +57,26 @@ export default function OfferSkill({ onBack, onPublish }) {
     }
   }
 
+  async function handlePublish() {
+    if (publishing) return;
+    setPublishing(true);
+    setError("");
+    try {
+      const experience = await publishSkill({
+        name: previewTitle,
+        description: previewDescription,
+        duration,
+        capacity: groupSize,
+        category: aiListing?.category,
+        indoor: aiListing?.indoor,
+      });
+      navigate(`/community?published=${encodeURIComponent(experience.id)}`);
+    } catch (requestError) {
+      setError(requestError.message);
+      setPublishing(false);
+    }
+  }
+
   return (
     <main className="offer-skill-page">
       <button className="back-link" type="button" onClick={onBack || (() => navigate("/community"))}>← Back</button>
@@ -60,20 +84,14 @@ export default function OfferSkill({ onBack, onPublish }) {
         <section className="offer-skill-intro">
           <span className="section-kicker">Offer a skill</span>
           <h1>What would you like to share?</h1>
-          <p>
-            Practical help, creative talents, local knowledge, or something you enjoy doing together.
-            Tell your community what you can offer.
-          </p>
+          <p>Tell the agent naturally. It will extract the experience details for you to review before anything is published.</p>
           <div className="offer-skill-examples">
-            <span>Try saying</span>
-            <button type="button" onClick={() => updateDescription("I'm handy with small home repairs and can help a neighbor fix a shelf or assemble furniture.")}>
-              “I can lend a hand with small repairs.”
+            <span>Try the demo story</span>
+            <button type="button" onClick={() => updateDescription("I was a florist before I retired, and I can teach two people flower arranging on Saturday afternoon.")}>
+              “I was a florist and can teach flower arranging.”
             </button>
             <button type="button" onClick={() => updateDescription("I love gardening and would enjoy helping someone plant or care for a small herb garden.")}>
               “Let's grow a small garden together.”
-            </button>
-            <button type="button" onClick={() => updateDescription("I enjoy photography and can take portraits for neighbors or capture a local gathering.")}>
-              “I can take photos for a local gathering.”
             </button>
           </div>
         </section>
@@ -81,25 +99,18 @@ export default function OfferSkill({ onBack, onPublish }) {
         <section className="offer-skill-form">
           <label>
             What can you offer?
-            <textarea
-              value={description}
-              onChange={(event) => updateDescription(event.target.value)}
-              placeholder="For example: I can help set up a new phone, take photos, share local walking routes, or cook a meal together..."
-              rows="7"
-            />
+            <textarea value={description} onChange={(event) => updateDescription(event.target.value)} placeholder="For example: I was a florist before I retired..." rows="7" />
           </label>
           <div className="offer-skill-fields">
             <label>
-              Duration
-              <select value={duration} onChange={(event) => setDuration(Number(event.target.value))}>
-                <option value="45">45 minutes</option>
-                <option value="60">60 minutes</option>
-                <option value="90">90 minutes</option>
+              Preferred duration
+              <select value={duration} onChange={(event) => { setDuration(Number(event.target.value)); setGenerated(false); }}>
+                <option value="45">45 minutes</option><option value="60">60 minutes</option><option value="90">90 minutes</option>
               </select>
             </label>
             <label>
-              Group size
-              <select value={groupSize} onChange={(event) => setGroupSize(Number(event.target.value))}>
+              Maximum group
+              <select value={groupSize} onChange={(event) => { setGroupSize(Number(event.target.value)); setGenerated(false); }}>
                 {[1, 2, 3, 4, 5, 6].map((size) => <option value={size} key={size}>{size} {size === 1 ? 'person' : 'people'}</option>)}
               </select>
             </label>
@@ -110,46 +121,34 @@ export default function OfferSkill({ onBack, onPublish }) {
             disabled={!description.trim() || generating}
             onClick={handleGenerate}
           >
-            {generating ? "✦ Thinking..." : "✦ Generate my listing"}
+            {generating ? "✦ Agent is structuring it…" : "✦ Generate my listing"}
           </button>
+          {error && <p className="field-error" role="alert">{error}</p>}
         </section>
       </div>
 
       {generated && (
         <section className="listing-preview" aria-live="polite">
           <div className="listing-preview__status">
-            {usedFallback ? "✦ Draft ready (offline preview)" : "✦ Your draft is ready"}
+            {usedFallback ? "✦ Draft ready (offline preview) · Review before publishing" : "✦ AI draft · Review before publishing"}
           </div>
           <div>
-            <span className="section-kicker">Preview</span>
+            <span className="section-kicker">
+              {aiListing?.categoryLabel || "Preview"} · {aiListing?.indoor === false ? "Outdoor" : "Indoor"}
+            </span>
             <h2>{previewTitle}</h2>
             <p>{previewDescription}</p>
             <div className="listing-preview__meta">
-              {aiListing?.categoryLabel && <span>{aiListing.categoryLabel}</span>}
               <span>◷ {duration} min</span>
               <span>◎ Up to {groupSize}</span>
               <CreditBadge credits={duration > 60 ? 2 : 1} compact />
             </div>
           </div>
           <div className="listing-preview__actions">
-            <button
-              className="person5-button person5-button--primary"
-              type="button"
-              onClick={() => {
-                onPublish?.({
-                  title: previewTitle,
-                  description: previewDescription,
-                  duration,
-                  capacity: groupSize,
-                  category: aiListing?.category,
-                  indoor: aiListing?.indoor,
-                });
-                setPublished(true);
-              }}
-            >
-              {published ? "✓ Published" : "Publish experience"}
+            <button className="person5-button person5-button--primary" type="button" disabled={publishing} onClick={handlePublish}>
+              {publishing ? "Publishing…" : "Confirm & publish"}
             </button>
-            {published && <p className="listing-preview__published" role="status">Your demo listing is ready for the community catalog.</p>}
+            <button className="text-button" type="button" disabled={publishing} onClick={() => setGenerated(false)}>Edit my description</button>
           </div>
         </section>
       )}

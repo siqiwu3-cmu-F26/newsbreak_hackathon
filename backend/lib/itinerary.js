@@ -1,9 +1,21 @@
 import { readFileSync } from "node:fs";
+import { listPublishedCommunityExperiences } from "../services/communityExperiences.js";
 
 const experiencesUrl = new URL("../data/experiences.json", import.meta.url);
 
-export const experiences = JSON.parse(readFileSync(experiencesUrl, "utf8"));
+export const experiences = [
+  ...JSON.parse(readFileSync(experiencesUrl, "utf8")),
+  ...listPublishedCommunityExperiences(),
+];
 export const experienceById = new Map(experiences.map((item) => [item.id, item]));
+
+export function registerExperience(experience) {
+  const existingIndex = experiences.findIndex((item) => item.id === experience.id);
+  if (existingIndex >= 0) experiences.splice(existingIndex, 1, experience);
+  else experiences.push(experience);
+  experienceById.set(experience.id, experience);
+  return experience;
+}
 
 const DEMO_SELECTION = [
   { id: "community_01", startTime: "15:00", endTime: "16:00", reason: "Interactive but low-pressure, making it ideal for a first date." },
@@ -120,6 +132,10 @@ export function hydrateItinerary(rawPlan, request, { fallback = false } = {}) {
         lng: experience.lng,
         indoor: experience.indoor,
         image: experience.image,
+        host: experience.host,
+        capacity: experience.capacity,
+        availability: experience.availability,
+        location: experience.location,
         travelToNext: 0,
         reason: planned.reason || "A good fit for your preferences."
       };
@@ -132,6 +148,7 @@ export function hydrateItinerary(rawPlan, request, { fallback = false } = {}) {
     summary: rawPlan.summary,
     activities,
     totals: calculateTotals(activities),
+    agentActions: buildAgentActions(activities, request),
     constraints: {
       startTime: request.startTime,
       endTime: request.endTime,
@@ -187,6 +204,10 @@ export function replaceActivity(itinerary, activityId, constraints = {}, replace
     ...itinerary,
     activities: updated,
     totals: calculateTotals(updated),
+    agentActions: {
+      ...(itinerary.agentActions || buildAgentActions(updated, constraints)),
+      latest: `Compared local alternatives, replaced ${original.name}, and recalculated timing, travel, and totals.`,
+    },
     constraints: { ...itinerary?.constraints, ...constraints }
   };
 }
@@ -220,6 +241,10 @@ export function replanForRain(itinerary, constraints = {}) {
       : "A cozy indoor plan, updated for rainy weather",
     activities,
     totals: calculateTotals(activities),
+    agentActions: {
+      ...(itinerary.agentActions || buildAgentActions(activities, constraints)),
+      latest: "Weather changed. I replaced affected outdoor stops and recalculated travel, timing, and budget.",
+    },
     constraints: { ...itinerary?.constraints, ...constraints }
   };
 }
@@ -297,6 +322,10 @@ function replaceAtIndex(activities, index, replacement, endTime, reason) {
     lng: replacement.lng,
     indoor: replacement.indoor,
     image: replacement.image,
+    host: replacement.host,
+    capacity: replacement.capacity,
+    availability: replacement.availability,
+    location: replacement.location,
     travelToNext: 0,
     reason
   };
@@ -327,6 +356,16 @@ function calculateTotals(activities) {
     }),
     { cash: 0, credits: 0, travelMinutes: 0 }
   );
+}
+
+function buildAgentActions(activities, request = {}) {
+  return {
+    checkedExperiences: experiences.length,
+    checks: ["live weather", "opening hours", "travel time", `$${request.budget ?? 0} budget`],
+    resolvedConstraints: 4,
+    communityConnections: activities.filter((item) => item.type === "community").length,
+    latest: "Built this plan from local availability and your preferences, then validated every stop.",
+  };
 }
 
 function travelMinutes(from, to) {

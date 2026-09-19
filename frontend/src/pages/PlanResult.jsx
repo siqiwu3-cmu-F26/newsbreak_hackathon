@@ -3,11 +3,14 @@ import { Link, useSearchParams } from 'react-router';
 import MapView from '../components/MapView.jsx';
 import WeatherContext from '../components/WeatherContext.jsx';
 import ReplacementChooser from '../components/ReplacementChooser.jsx';
+import AgentReceipt from '../components/AgentReceipt.jsx';
+import BookingConfirm from '../components/BookingConfirm.jsx';
 import { getDemoItinerary } from '../data/demoItinerary.js';
 import { toDisplayPlan } from '../lib/itinerary.js';
 import { DEMO_REQUEST } from '../lib/planRequest.js';
 import { scheduleConflict } from '../lib/replacement.js';
 import { getEnvironmentContext, getExperiences, replaceItinerary, replanItinerary, reorderItinerary } from '../services/api.js';
+import { requestExperience } from '../services/auth.js';
 import Itinerary from './Itinerary.jsx';
 
 const sourceMessages = {
@@ -40,6 +43,9 @@ export default function PlanResult({ result, onPlanChange }) {
   const [replacementConflict, setReplacementConflict] = useState(null);
   const [replacementBusy, setReplacementBusy] = useState(false);
   const [shorterOnly, setShorterOnly] = useState(false);
+  const [bookingTarget, setBookingTarget] = useState(null);
+  const [bookingBusy, setBookingBusy] = useState(false);
+  const [bookingStatuses, setBookingStatuses] = useState({});
   const [replacementLoading, setReplacementLoading] = useState(false);
   const optionsRequestRef = useRef(null);
 
@@ -218,6 +224,30 @@ export default function PlanResult({ result, onPlanChange }) {
     return updatePlan(signal => reorderItinerary(itinerary, ids, request, { signal }), 'Order saved. Activity times, travel estimates, totals, and map have been updated. Check time-specific experiences such as sunset walks before heading out.');
   }
 
+  async function confirmBooking() {
+    if (!bookingTarget || bookingBusy) return;
+    setBookingBusy(true);
+    setNotice('');
+    try {
+      const scheduledTime = `${request.date} at ${formatClock(bookingTarget.startTime)}`;
+      const response = await requestExperience(bookingTarget.id || bookingTarget.experienceId, scheduledTime);
+      setBookingStatuses((current) => ({ ...current, [bookingTarget.id || bookingTarget.experienceId]: response.booking.status }));
+      setItinerary((current) => ({
+        ...current,
+        agentActions: {
+          ...current.agentActions,
+          latest: `Checked ${bookingTarget.host}'s listed availability and sent a booking request after your confirmation. No credits were charged.`,
+        },
+      }));
+      setNotice(`${response.message} Status: Requested · Awaiting ${bookingTarget.host}.`);
+      setBookingTarget(null);
+    } catch (error) {
+      setNotice(error.message || 'The booking request could not be sent.');
+    } finally {
+      setBookingBusy(false);
+    }
+  }
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -240,10 +270,20 @@ export default function PlanResult({ result, onPlanChange }) {
         busy={busy || Boolean(replacementTarget)}
       />
 
+      <AgentReceipt actions={itinerary.agentActions} />
+
       {notice && <p role="status" className="mt-4 rounded-xl border border-line bg-white p-3 text-sm text-muted">{notice}</p>}
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,640px)_minmax(300px,1fr)]">
-        <Itinerary key={selected.id} plan={plan} onReplace={handleReplace} onReorder={handleReorder} busy={busy || Boolean(replacementTarget)} />
+        <Itinerary
+          key={selected.id}
+          plan={plan}
+          onReplace={handleReplace}
+          onReorder={handleReorder}
+          onRequest={setBookingTarget}
+          bookingStatuses={bookingStatuses}
+          busy={busy || Boolean(replacementTarget)}
+        />
         <div className="lg:sticky lg:top-6">
           <MapView activities={itinerary.activities} />
         </div>
@@ -259,6 +299,12 @@ export default function PlanResult({ result, onPlanChange }) {
         onCancel={closeReplacement}
         onKeepReplacement={() => applyReplacement()}
         onChooseShorter={showShorterOptions}
+      />
+      <BookingConfirm
+        activity={bookingTarget}
+        busy={bookingBusy}
+        onConfirm={confirmBooking}
+        onCancel={() => { if (!bookingBusy) setBookingTarget(null); }}
       />
     </div>
   );
