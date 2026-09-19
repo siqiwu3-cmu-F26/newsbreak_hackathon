@@ -10,6 +10,7 @@ import planRouter from "./routes/plan.js";
 import replaceRouter from "./routes/replace.js";
 import replanRouter from "./routes/replan.js";
 import reorderRouter from "./routes/reorder.js";
+import skillsRouter from "./routes/skills.js";
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
@@ -29,6 +30,7 @@ app.use("/plan", planRouter);
 app.use("/replace", replaceRouter);
 app.use("/replan", replanRouter);
 app.use("/reorder", reorderRouter);
+app.use("/skills", skillsRouter);
 
 // Compatibility aliases while the frontend team settles the API prefix.
 app.use("/api/auth", authRouter);
@@ -39,6 +41,7 @@ app.use("/api/plan", planRouter);
 app.use("/api/replace", replaceRouter);
 app.use("/api/replan", replanRouter);
 app.use("/api/reorder", reorderRouter);
+app.use("/api/skills", skillsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });

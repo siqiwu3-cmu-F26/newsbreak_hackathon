@@ -98,6 +98,21 @@ export async function getEnvironmentContext({ location = 'Palo Alto, CA', lat, l
   return response.json();
 }
 
+export async function extractSkillListing({ description, duration, groupSize }, { signal, fetchImpl = globalThis.fetch } = {}) {
+  const response = await fetchImpl(`${API_BASE_URL}/skills/extract`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ description, duration, groupSize }),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) throw new Error(`Skill extraction returned ${response.status}`);
+  const listing = await response.json();
+  if (!listing || typeof listing.name !== 'string' || typeof listing.category !== 'string') {
+    throw new Error('Skill extraction returned an invalid listing');
+  }
+  return listing;
+}
+
 export async function getExperiences({ fetchImpl = globalThis.fetch, signal } = {}) {
   const response = await fetchImpl(`${API_BASE_URL}/experiences`, {
     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
