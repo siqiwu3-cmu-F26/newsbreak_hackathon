@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import ExperienceCard from "../components/ExperienceCard";
 import CreditBadge from "../components/CreditBadge";
 import { API_BASE_URL } from "../config.js";
@@ -10,6 +10,8 @@ const categories = ["all", "creative", "food", "outdoors", "relaxing", "culture"
 
 export default function Community({ onSelectExperience, onOfferSkill }) {
   const navigate = useNavigate();
+  const [search] = useSearchParams();
+  const publishedId = search.get("published");
   const [experiences, setExperiences] = useState(communityExperiences);
   const [category, setCategory] = useState("all");
   const [query, setQuery] = useState("");
@@ -30,8 +32,15 @@ export default function Community({ onSelectExperience, onOfferSkill }) {
           .filter((item) => item.type === "community")
           .map((item) => ({
             ...communityExperiences.find((fallback) => fallback.id === item.id),
+            capacity: item.capacity || 4,
+            location: item.location || "Palo Alto, CA",
+            rating: item.rating || 5,
+            reviews: item.reviews || 0,
+            tags: item.tags || ["Verified host"],
+            accent: item.accent || item.category,
             ...item,
-          }));
+          }))
+          .sort((a, b) => Number(b.id === publishedId) - Number(a.id === publishedId));
         if (communityOnly.length) {
           setExperiences(communityOnly);
           setUsingFallback(false);
@@ -98,6 +107,11 @@ export default function Community({ onSelectExperience, onOfferSkill }) {
       </section>
 
       <section className="community-section" id="experiences">
+        {publishedId && (
+          <div className="mb-6 rounded-2xl border border-brand bg-brand-soft p-4 text-brand" role="status">
+            <strong>✓ Published to the community.</strong> Your AI-structured experience is live below and is now available to the planning agent.
+          </div>
+        )}
         <div className="community-section__heading">
           <div>
             <span className="section-kicker">Near Palo Alto</span>

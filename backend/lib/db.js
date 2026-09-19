@@ -70,6 +70,41 @@ const MIGRATIONS = [
   -- The welcome bonus can only ever be granted once per user.
   CREATE UNIQUE INDEX credit_transactions_one_welcome
     ON credit_transactions (user_id) WHERE reason = 'welcome';
+  `,
+  `
+  CREATE TABLE community_experiences (
+    id TEXT PRIMARY KEY,
+    owner_user_id TEXT NOT NULL REFERENCES users (id),
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    host TEXT NOT NULL,
+    duration INTEGER NOT NULL CHECK (duration BETWEEN 30 AND 180),
+    capacity INTEGER NOT NULL CHECK (capacity BETWEEN 1 AND 12),
+    credits INTEGER NOT NULL CHECK (credits BETWEEN 1 AND 4),
+    open_from TEXT NOT NULL,
+    open_to TEXT NOT NULL,
+    indoor INTEGER NOT NULL CHECK (indoor IN (0, 1)),
+    description TEXT NOT NULL,
+    availability_text TEXT NOT NULL,
+    lat REAL NOT NULL,
+    lng REAL NOT NULL,
+    location TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'paused')),
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX community_experiences_owner ON community_experiences (owner_user_id);
+
+  CREATE TABLE booking_requests (
+    id TEXT PRIMARY KEY,
+    requester_user_id TEXT NOT NULL REFERENCES users (id),
+    experience_id TEXT NOT NULL,
+    scheduled_time TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'awaiting_host'
+      CHECK (status IN ('awaiting_host', 'accepted', 'declined', 'cancelled')),
+    created_at TEXT NOT NULL,
+    UNIQUE (requester_user_id, experience_id, scheduled_time)
+  );
+  CREATE INDEX booking_requests_user ON booking_requests (requester_user_id);
   `
 ];
 

@@ -58,3 +58,9 @@ export const fetchMe = () => request('/auth/me');
 export const verifyIdentity = (details) => request('/auth/verify-identity', { method: 'POST', body: details });
 export const verifyAddress = (details) => request('/auth/verify-address', { method: 'POST', body: details });
 export const fetchCredits = () => request('/credits');
+export const generateSkillDraft = (details) => request('/experiences/draft', { method: 'POST', body: details });
+export const publishSkill = (draft) => request('/experiences', { method: 'POST', body: draft });
+export const requestExperience = (experienceId, scheduledTime) => request(`/experiences/${experienceId}/request`, {
+  method: 'POST',
+  body: { scheduledTime },
+});

@@ -157,4 +157,29 @@ ${JSON.stringify(candidates)}`;
   return parseLLMJson(textBlock.text);
 }
 
+export async function extractSkillListing({ description, duration, capacity }) {
+  const prompt = `Turn a neighbor's informal skill offer into a safe, welcoming local experience listing.
+Do not invent credentials, addresses, prices, or claims. Use one of these categories only:
+creative, food, outdoors, relaxing, active, culture.
+Infer availability and indoor/outdoor only when reasonable; otherwise use Saturday afternoon and indoor.
+The user selected a preferred duration of ${duration} minutes and capacity of ${capacity}; preserve those values.
+
+Neighbor's words:
+${description}
+
+Return JSON only in this exact shape:
+{"name":"short inviting title","category":"creative","description":"2 concise sentences grounded in their words","duration":60,"capacity":4,"credits":1,"indoor":true,"availability":"Saturday afternoon","openFrom":"14:00","openTo":"18:00"}`;
+  const anthropic = getClient();
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 550,
+    temperature: 0.4,
+    system: "You structure community skill listings. Return valid JSON only, without markdown.",
+    messages: [{ role: "user", content: prompt }],
+  });
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock) throw new Error("LLM response contained no text block");
+  return parseLLMJson(textBlock.text);
+}
+
 export const AGENT_CONFIG = { MODEL, TEMPERATURE, MAX_TOKENS, TIMEOUT_MS };

@@ -1,6 +1,6 @@
 import ActivityCard from "./ActivityCard.jsx";
 
-export default function Timeline({ activities, onReplace, replacingId }) {
+export default function Timeline({ activities, onReplace, onRequest, bookingStatuses, replacingId }) {
   return (
     <ol className="timeline">
       {activities.map((activity, index) => (
@@ -12,6 +12,8 @@ export default function Timeline({ activities, onReplace, replacingId }) {
             activity={activity}
             replacing={replacingId === activity.experienceId}
             onReplace={onReplace ? () => onReplace(index) : undefined}
+            onRequest={onRequest}
+            bookingStatus={bookingStatuses?.[activity.experienceId]}
           />
         </li>
       ))}
