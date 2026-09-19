@@ -8,9 +8,21 @@ import { importLegacyJson } from "./migrateLegacy.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-// Schema versions, applied in order and tracked with SQLite's `user_version` pragma.
+const tableExists = (db, table) =>
+  Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(table));
+// `table` is always one of the constants below, never user input.
+const columnExists = (db, table, column) =>
+  db.prepare(`PRAGMA table_info(${table})`).all().some((info) => info.name === column);
+
+// Each migration checks the real schema (is this table/column already there?) instead of
+// trusting a single version counter. Features were added in parallel, so two databases can be
+// at "version 2" with different things applied; checking the schema handles every combination.
+// Migrations must be independent of each other, apart from needing the `users` table.
 export const MIGRATIONS = [
-  `
+  {
+    name: "accounts",
+    isApplied: (db) => tableExists(db, "users"),
+    sql: `
   CREATE TABLE users (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -70,10 +82,54 @@ export const MIGRATIONS = [
   -- The welcome bonus can only ever be granted once per user.
   CREATE UNIQUE INDEX credit_transactions_one_welcome
     ON credit_transactions (user_id) WHERE reason = 'welcome';
-  `,
-  // Version 2: self introduction and profile photo. The image lives in its own table so the
-  // large blob isn't loaded every time a user row is read (which happens on every request).
   `
+  },
+  {
+    // Community skill posts and booking requests.
+    name: "community-experiences",
+    isApplied: (db) => tableExists(db, "community_experiences"),
+    sql: `
+  CREATE TABLE community_experiences (
+    id TEXT PRIMARY KEY,
+    owner_user_id TEXT NOT NULL REFERENCES users (id),
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    host TEXT NOT NULL,
+    duration INTEGER NOT NULL CHECK (duration BETWEEN 30 AND 180),
+    capacity INTEGER NOT NULL CHECK (capacity BETWEEN 1 AND 12),
+    credits INTEGER NOT NULL CHECK (credits BETWEEN 1 AND 4),
+    open_from TEXT NOT NULL,
+    open_to TEXT NOT NULL,
+    indoor INTEGER NOT NULL CHECK (indoor IN (0, 1)),
+    description TEXT NOT NULL,
+    availability_text TEXT NOT NULL,
+    lat REAL NOT NULL,
+    lng REAL NOT NULL,
+    location TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'paused')),
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX community_experiences_owner ON community_experiences (owner_user_id);
+
+  CREATE TABLE booking_requests (
+    id TEXT PRIMARY KEY,
+    requester_user_id TEXT NOT NULL REFERENCES users (id),
+    experience_id TEXT NOT NULL,
+    scheduled_time TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'awaiting_host'
+      CHECK (status IN ('awaiting_host', 'accepted', 'declined', 'cancelled')),
+    created_at TEXT NOT NULL,
+    UNIQUE (requester_user_id, experience_id, scheduled_time)
+  );
+  CREATE INDEX booking_requests_user ON booking_requests (requester_user_id);
+  `
+  },
+  {
+    // Self introduction and profile photo. The image lives in its own table so the large blob
+    // isn't loaded every time a user row is read (which happens on every request).
+    name: "profiles",
+    isApplied: (db) => columnExists(db, "users", "bio"),
+    sql: `
   ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT '';
   ALTER TABLE users ADD COLUMN avatar_updated_at TEXT;
 
@@ -83,6 +139,7 @@ export const MIGRATIONS = [
     updated_at TEXT NOT NULL
   );
   `
+  }
 ];
 
 // Opens (creating if needed) a SQLite database file and brings its schema up to date.
@@ -95,13 +152,11 @@ export function openDatabase(file, { legacyJson } = {}) {
   db.pragma("foreign_keys = ON");
   db.pragma("busy_timeout = 5000");
 
-  const version = db.pragma("user_version", { simple: true });
-  MIGRATIONS.slice(version).forEach((sql, offset) => {
-    db.transaction(() => {
-      db.exec(sql);
-      db.pragma(`user_version = ${version + offset + 1}`);
-    })();
-  });
+  for (const migration of MIGRATIONS) {
+    if (!migration.isApplied(db)) db.transaction(() => db.exec(migration.sql))();
+  }
+  // Informational only; the schema checks above are what decide what runs.
+  db.pragma(`user_version = ${MIGRATIONS.length}`);
 
   const isEmpty = db.prepare("SELECT COUNT(*) AS count FROM users").get().count === 0;
   if (legacyJson && isEmpty && fs.existsSync(legacyJson)) {

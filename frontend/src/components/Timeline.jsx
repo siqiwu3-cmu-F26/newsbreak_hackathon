@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import ActivityCard from "./ActivityCard.jsx";
 
-export default function Timeline({ activities, onReplace, replacingId, onReorder, busy = false }) {
+export default function Timeline({ activities, onReplace, onRequest, bookingStatuses, replacingId, onReorder, busy = false }) {
   const [drag, setDrag] = useState(null);
   const gestureRef = useRef(null);
   const listRef = useRef(null);
@@ -96,6 +96,8 @@ export default function Timeline({ activities, onReplace, replacingId, onReorder
             activity={activity}
             replacing={replacingId === activity.experienceId}
             onReplace={onReplace ? () => onReplace(index) : undefined}
+            onRequest={onRequest}
+            bookingStatus={bookingStatuses?.[activity.experienceId]}
             disabled={busy}
           />
         </li>

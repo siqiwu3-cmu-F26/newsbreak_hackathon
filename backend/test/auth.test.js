@@ -16,6 +16,7 @@ const { ageOn, mockVerifyIdentity, normalizeName, validateIdentityInput } = awai
 const { earn, getBalance, grantWelcomeCredits, listTransactions, spend } = await import("../services/credits.js");
 const { db, openDatabase } = await import("../lib/db.js");
 const { rowToUser } = await import("../lib/userRows.js");
+const { createBookingRequest, createCommunityExperience, listPublishedCommunityExperiences } = await import("../services/communityExperiences.js");
 
 test.after(() => {
   db.close();
@@ -244,4 +245,24 @@ test("spending more credits than the balance is rejected and changes nothing", (
   assert.equal(getBalance(user.id), 1);
   assert.throws(() => spend(user.id, 0, "experience"), { status: 400 });
   assert.throws(() => earn(user.id, 1.5, "seed"), { status: 400 });
+});
+
+test("a published skill enters the shared catalog and can receive a confirmed request", () => {
+  const host = createUser({ name: "Linda Bloom", email: "linda@example.com", password: "supersecret" });
+  const guest = createUser({ name: "Demo Guest", email: "guest@example.com", password: "supersecret" });
+  const experience = createCommunityExperience(host, {
+    name: "Saturday Flower Arranging",
+    category: "creative",
+    description: "Learn simple seasonal flower arranging from a retired florist.",
+    duration: 60,
+    capacity: 2,
+    credits: 1,
+    availability: "Saturday afternoon",
+  });
+  assert.equal(listPublishedCommunityExperiences()[0].id, experience.id);
+  assert.equal(experience.host, "Linda");
+
+  const booking = createBookingRequest(guest, experience, "2026-09-19 at 3:00 PM");
+  assert.equal(booking.status, "awaiting_host");
+  assert.throws(() => createBookingRequest(guest, experience, "2026-09-19 at 3:00 PM"), { status: 409 });
 });

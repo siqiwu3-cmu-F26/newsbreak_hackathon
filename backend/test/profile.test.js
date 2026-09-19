@@ -140,21 +140,58 @@ test("replacing and removing a photo updates the version and deletes the image",
   assert.equal(removeAvatar(user.id).avatarUpdatedAt, null, "removing twice is harmless");
 });
 
-test("a schema-version-1 database (like one created before profiles) upgrades in place", () => {
-  const file = path.join(tempDir, "v1.db");
+// Migrations must work whichever features a database already has, because features were
+// added in parallel: yours may have profiles but no community tables, a teammate's the reverse.
+const migration = (name) => MIGRATIONS.find((item) => item.name === name);
+const applyOnly = (file, names) => {
   const old = new Database(file);
-  old.exec(MIGRATIONS[0]);
+  for (const name of names) old.exec(migration(name).sql);
+  old.pragma("user_version = 2"); // both partial states claim to be "version 2"
+  return old;
+};
+const hasTable = (conn, table) => Boolean(conn.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(table));
+const insertUser = (conn) =>
+  conn.prepare("INSERT INTO users (id, name, email, password_hash, created_at) VALUES ('u_old', 'Old User', 'old@example.com', 'h', 't')").run();
+
+test("a database from before profiles and community posts upgrades in place", () => {
+  const file = path.join(tempDir, "v1.db");
+  const old = applyOnly(file, ["accounts"]);
   old.pragma("user_version = 1");
-  old.prepare("INSERT INTO users (id, name, email, password_hash, created_at) VALUES ('u_old', 'Old User', 'old@example.com', 'h', 't')").run();
+  insertUser(old);
   old.close();
 
   const upgraded = openDatabase(file);
   assert.equal(upgraded.pragma("user_version", { simple: true }), MIGRATIONS.length);
-  const row = upgraded.prepare("SELECT bio, avatar_updated_at FROM users WHERE id = 'u_old'").get();
-  assert.deepEqual(row, { bio: "", avatar_updated_at: null }, "existing users keep their data and get an empty profile");
-  assert.equal(upgraded.prepare("SELECT COUNT(*) AS n FROM user_avatars").get().n, 0);
+  assert.deepEqual(upgraded.prepare("SELECT bio, avatar_updated_at FROM users WHERE id = 'u_old'").get(), { bio: "", avatar_updated_at: null });
+  assert.ok(hasTable(upgraded, "user_avatars") && hasTable(upgraded, "community_experiences") && hasTable(upgraded, "booking_requests"));
   upgraded.close();
+  openDatabase(file).close(); // reopening must not try to re-run anything
+});
 
-  // Opening it again must not try to re-run the migration.
-  openDatabase(file).close();
+test("a database that already has community posts (teammate's) gets profiles, and keeps its data", () => {
+  const file = path.join(tempDir, "community-only.db");
+  const old = applyOnly(file, ["accounts", "community-experiences"]);
+  insertUser(old);
+  old.prepare(`INSERT INTO community_experiences (id, owner_user_id, name, category, host, duration, capacity, credits, open_from, open_to, indoor, description, availability_text, lat, lng, location, created_at)
+    VALUES ('c1', 'u_old', 'Pottery', 'creative', 'Old', 60, 4, 1, '10:00', '12:00', 1, 'desc', 'weekends', 37.4, -122.1, 'Palo Alto', 't')`).run();
+  old.close();
+
+  const upgraded = openDatabase(file);
+  assert.ok(upgraded.prepare("SELECT bio FROM users WHERE id = 'u_old'").get() !== undefined, "profile columns were added");
+  assert.ok(hasTable(upgraded, "user_avatars"));
+  assert.equal(upgraded.prepare("SELECT name FROM community_experiences WHERE id = 'c1'").get().name, "Pottery", "their data is untouched");
+  upgraded.close();
+});
+
+test("a database that already has profiles (yours) gets community posts, and keeps its data", () => {
+  const file = path.join(tempDir, "profiles-only.db");
+  const old = applyOnly(file, ["accounts", "profiles"]);
+  insertUser(old);
+  old.prepare("UPDATE users SET bio = 'Hello!' WHERE id = 'u_old'").run();
+  old.close();
+
+  const upgraded = openDatabase(file);
+  assert.ok(hasTable(upgraded, "community_experiences") && hasTable(upgraded, "booking_requests"));
+  assert.equal(upgraded.prepare("SELECT bio FROM users WHERE id = 'u_old'").get().bio, "Hello!", "the bio is untouched");
+  upgraded.close();
 });
