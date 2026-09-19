@@ -25,20 +25,23 @@ export class ApiError extends Error {
   }
 }
 
-async function request(path, { method = 'GET', body, token = tokenStore.get() } = {}) {
+// `body` is sent as JSON; `blob` is sent as-is with its own content type (used for photos).
+// `asBlob` returns the response as a Blob instead of parsing JSON.
+export async function request(path, { method = 'GET', body, blob, asBlob = false, token = tokenStore.get() } = {}) {
   let response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: {
-        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...(blob ? { 'Content-Type': blob.type } : body ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: blob ?? (body ? JSON.stringify(body) : undefined),
     });
   } catch {
     throw new ApiError('Cannot reach the server. Check your connection and try again.');
   }
+  if (response.ok && asBlob) return response.blob();
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new ApiError(data.error || 'Something went wrong. Please try again.', {

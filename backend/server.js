@@ -6,7 +6,9 @@ import authRouter from "./routes/auth.js";
 import contextRouter from "./routes/context.js";
 import creditsRouter from "./routes/credits.js";
 import experiencesRouter from "./routes/experiences.js";
+import membersRouter from "./routes/members.js";
 import planRouter from "./routes/plan.js";
+import profileRouter from "./routes/profile.js";
 import replaceRouter from "./routes/replace.js";
 import replanRouter from "./routes/replan.js";
 import reorderRouter from "./routes/reorder.js";
@@ -24,6 +26,8 @@ app.get("/health", (_req, res) => {
 
 app.use("/auth", authRouter);
 app.use("/credits", creditsRouter);
+app.use("/profile", profileRouter);
+app.use("/members", membersRouter);
 app.use("/experiences", experiencesRouter);
 app.use("/context", contextRouter);
 app.use("/plan", planRouter);
@@ -35,6 +39,8 @@ app.use("/skills", skillsRouter);
 // Compatibility aliases while the frontend team settles the API prefix.
 app.use("/api/auth", authRouter);
 app.use("/api/credits", creditsRouter);
+app.use("/api/profile", profileRouter);
+app.use("/api/members", membersRouter);
 app.use("/api/experiences", experiencesRouter);
 app.use("/api/context", contextRouter);
 app.use("/api/plan", planRouter);

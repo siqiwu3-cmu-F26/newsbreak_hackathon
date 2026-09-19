@@ -9,6 +9,8 @@ import PlanResult from './pages/PlanResult.jsx';
 import PlanTogether from './pages/PlanTogether.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
 import Login from './pages/Login.jsx';
+import Member from './pages/Member.jsx';
+import Profile from './pages/Profile.jsx';
 import Verify from './pages/Verify.jsx';
 import Wallet from './pages/Wallet.jsx';
 import usePlannerSession from './hooks/usePlannerSession.js';
@@ -29,6 +31,8 @@ export default function App() {
             <Route path="/plan-together" element={<PlanTogether onPlanReady={setResult} />} />
             <Route path="/itinerary" element={<PlanResult result={result} onPlanChange={setResult} />} />
             <Route path="/wallet" element={<Wallet />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/members/:memberId" element={<Member />} />
             <Route path="/community" element={<Community />} />
             <Route path="/experiences/:experienceId" element={<ExperienceDetail />} />
             <Route path="/offer-skill" element={<OfferSkill />} />

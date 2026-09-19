@@ -86,6 +86,8 @@ export function publicUser(user) {
     name: user.name,
     email: user.email,
     createdAt: user.createdAt,
+    bio: user.bio ?? "",
+    avatarVersion: user.avatarUpdatedAt ?? null,
     verification: {
       status: verification.status,
       verifiedAt: verification.verifiedAt,

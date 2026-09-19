@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router';
 import { isVerified, useAuth } from '../context/AuthContext.jsx';
+import Avatar from './Avatar.jsx';
 
 export default function AppLayout() {
   const { status, user, balance, logout } = useAuth();
@@ -27,6 +28,9 @@ export default function AppLayout() {
                   aria-label={`Time Credit wallet: ${balance} ${balance === 1 ? 'credit' : 'credits'}`}
                 >
                   <span aria-hidden="true">✦</span>{balance}
+                </NavLink>
+                <NavLink to="/profile" className="ml-1 rounded-full" aria-label="Your profile">
+                  <Avatar userId={user.id} name={user.name} version={user.avatarVersion} size={40} decorative />
                 </NavLink>
               </>
             )}

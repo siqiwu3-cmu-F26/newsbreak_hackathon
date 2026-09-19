@@ -11,6 +11,8 @@ export function rowToUser(row) {
     email: row.email,
     passwordHash: row.password_hash,
     createdAt: row.created_at,
+    bio: row.bio ?? '',
+    avatarUpdatedAt: row.avatar_updated_at ?? null,
     verification: dropNull({
       status: row.identity_status,
       reason: row.identity_reason,

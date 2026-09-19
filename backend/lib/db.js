@@ -9,7 +9,7 @@ import { importLegacyJson } from "./migrateLegacy.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 // Schema versions, applied in order and tracked with SQLite's `user_version` pragma.
-const MIGRATIONS = [
+export const MIGRATIONS = [
   `
   CREATE TABLE users (
     id TEXT PRIMARY KEY,
@@ -70,6 +70,18 @@ const MIGRATIONS = [
   -- The welcome bonus can only ever be granted once per user.
   CREATE UNIQUE INDEX credit_transactions_one_welcome
     ON credit_transactions (user_id) WHERE reason = 'welcome';
+  `,
+  // Version 2: self introduction and profile photo. The image lives in its own table so the
+  // large blob isn't loaded every time a user row is read (which happens on every request).
+  `
+  ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT '';
+  ALTER TABLE users ADD COLUMN avatar_updated_at TEXT;
+
+  CREATE TABLE user_avatars (
+    user_id TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+    image BLOB NOT NULL,
+    updated_at TEXT NOT NULL
+  );
   `
 ];
 
