@@ -22,7 +22,8 @@ Backend:
 cd backend
 npm ci
 cp .env.example .env
-# Add ANTHROPIC_API_KEY and, when required, ANTHROPIC_WORKSPACE_ID to .env.
+# Add ANTHROPIC_API_KEY and MONGODB_URI to .env.
+npm run db:init
 npm run dev
 ```
 
@@ -45,6 +46,8 @@ Backend (`backend/.env`):
 - `ANTHROPIC_API_KEY`: required for live AI plans.
 - `ANTHROPIC_WORKSPACE_ID`: optional workspace header for organization-level keys.
 - `PORT`: optional backend port; defaults to `3001`.
+- `MONGODB_URI`: MongoDB Atlas connection string used by the login API.
+- `MONGODB_DB_NAME`: optional database name; defaults to `localconnect`.
 
 Frontend (`frontend/.env`):
 
@@ -56,6 +59,10 @@ Never commit `.env` files. Both frontend and backend include safe `.env.example`
 ## API
 
 - `GET /health`
+- `POST /api/auth/register` with `{ "name", "email", "password" }`
+- `POST /api/auth/login` with `{ "email", "password" }`
+- `GET /api/auth/me` with an `Authorization: Bearer <token>` header
+- `POST /api/auth/logout` with an `Authorization: Bearer <token>` header
 - `GET /api/experiences`
 - `GET /api/context?location=Palo%20Alto%2C%20CA&date=2026-09-19`
 - `POST /api/plan`

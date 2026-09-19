@@ -8,12 +8,14 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "node --test",
-    "test:agent": "node scripts/testPlanner.js"
+    "test:agent": "node scripts/testPlanner.js",
+    "db:init": "node scripts/initDatabase.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "mongodb": "^6.21.0"
   }
 }
