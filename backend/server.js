@@ -2,7 +2,6 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 
-import { initializeDatabase } from "./db/mongo.js";
 import authRouter from "./routes/auth.js";
 import contextRouter from "./routes/context.js";
 import creditsRouter from "./routes/credits.js";
@@ -33,6 +32,7 @@ app.use("/replan", replanRouter);
 app.use("/reorder", reorderRouter);
 app.use("/skills", skillsRouter);
 
+// Compatibility aliases while the frontend team settles the API prefix.
 app.use("/api/auth", authRouter);
 app.use("/api/credits", creditsRouter);
 app.use("/api/experiences", experiencesRouter);
@@ -47,24 +47,8 @@ app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
-app.use((error, _req, res, _next) => {
-  console.error(error);
-  res.status(500).json({ error: "Internal server error" });
+app.listen(port, () => {
+  console.log(`LocalConnect backend listening on http://localhost:${port}`);
 });
-
-async function startServer() {
-  const db = await initializeDatabase();
-  console.log(`Connected to MongoDB database '${db.databaseName}'`);
-  app.listen(port, () => {
-    console.log(`LocalConnect backend listening on http://localhost:${port}`);
-  });
-}
-
-if (process.env.NODE_ENV !== "test") {
-  startServer().catch((error) => {
-    console.error("Unable to start backend:", error.message);
-    process.exitCode = 1;
-  });
-}
 
 export default app;
