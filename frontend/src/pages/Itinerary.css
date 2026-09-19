@@ -55,6 +55,7 @@
 .itinerary h1 {
   margin: 0;
   font-size: 32px;
+  font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.02em;
 }
@@ -156,6 +157,7 @@
 .activity-card__title {
   margin: 8px 0 2px;
   font-size: 20px;
+  font-weight: 700;
   line-height: 1.25;
 }
 

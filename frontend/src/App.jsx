@@ -1,5 +1,6 @@
 import { Link, NavLink, Route, Routes } from 'react-router';
 import Home from './pages/Home.jsx';
+import Itinerary from './pages/Itinerary.jsx';
 import PagePlaceholder from './components/PagePlaceholder.jsx';
 
 export default function App() {
@@ -23,7 +24,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           {/* Replace these placeholders with the feature pages as they are implemented. */}
-          <Route path="/itinerary" element={<PagePlaceholder eyebrow="Your day" title="Your itinerary" description="Your activities, timeline, and local stops will appear here once planning is connected." />} />
+          <Route path="/itinerary" element={<Itinerary />} />
           <Route path="/community" element={<PagePlaceholder eyebrow="Meet your neighbors" title="Community experiences" description="Discover workshops and experiences shared by people in your neighborhood. Coming soon." />} />
           <Route path="/experiences/:experienceId" element={<PagePlaceholder eyebrow="Local experiences" title="Experience details" description="Host information, location, and experience details are coming soon." />} />
           <Route path="/offer-skill" element={<PagePlaceholder eyebrow="Give something back" title="Share what you love" description="A place to share your skills with your community. Coming soon." />} />

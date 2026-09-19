@@ -36,7 +36,7 @@ export default function Itinerary({ plan = mockPlan, onReplace }) {
   }
 
   return (
-    <main className="itinerary">
+    <div className="itinerary">
       <header className="itinerary__header">
         <p className="itinerary__eyebrow">Your AI-planned day</p>
         <h1>Your {weekday(plan.date)} Plan</h1>
@@ -50,6 +50,6 @@ export default function Itinerary({ plan = mockPlan, onReplace }) {
       />
 
       <PlanSummary activities={activities} budget={plan.budget} />
-    </main>
+    </div>
   );
 }
