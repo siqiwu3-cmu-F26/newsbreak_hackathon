@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import CreditBadge from "../components/CreditBadge";
+import { extractSkillListing } from "../services/api.js";
 import "../person5.css";
 
 function titleFromDescription(description) {
@@ -20,12 +21,36 @@ export default function OfferSkill({ onBack, onPublish }) {
   const [groupSize, setGroupSize] = useState(4);
   const [generated, setGenerated] = useState(false);
   const [published, setPublished] = useState(false);
-  const previewTitle = useMemo(() => titleFromDescription(description), [description]);
+  const [generating, setGenerating] = useState(false);
+  const [aiListing, setAiListing] = useState(null); // { name, category, categoryLabel, indoor, description }
+  const [usedFallback, setUsedFallback] = useState(false);
+  const fallbackTitle = useMemo(() => titleFromDescription(description), [description]);
+  const previewTitle = aiListing?.name || fallbackTitle;
+  const previewDescription = aiListing?.description || description;
 
   function updateDescription(value) {
     setDescription(value);
     setGenerated(false);
     setPublished(false);
+    setAiListing(null);
+    setUsedFallback(false);
+  }
+
+  async function handleGenerate() {
+    setGenerating(true);
+    setUsedFallback(false);
+    try {
+      const listing = await extractSkillListing({ description, duration, groupSize });
+      setAiListing(listing);
+    } catch {
+      // Never break the demo over a flaky call — fall back to the
+      // deterministic title guess and the poster's own raw text.
+      setAiListing(null);
+      setUsedFallback(true);
+    } finally {
+      setGenerated(true);
+      setGenerating(false);
+    }
   }
 
   return (
@@ -82,22 +107,25 @@ export default function OfferSkill({ onBack, onPublish }) {
           <button
             className="person5-button person5-button--primary"
             type="button"
-            disabled={!description.trim()}
-            onClick={() => setGenerated(true)}
+            disabled={!description.trim() || generating}
+            onClick={handleGenerate}
           >
-            ✦ Generate my listing
+            {generating ? "✦ Thinking..." : "✦ Generate my listing"}
           </button>
         </section>
       </div>
 
       {generated && (
         <section className="listing-preview" aria-live="polite">
-          <div className="listing-preview__status">✦ Your draft is ready</div>
+          <div className="listing-preview__status">
+            {usedFallback ? "✦ Draft ready (offline preview)" : "✦ Your draft is ready"}
+          </div>
           <div>
             <span className="section-kicker">Preview</span>
             <h2>{previewTitle}</h2>
-            <p>{description}</p>
+            <p>{previewDescription}</p>
             <div className="listing-preview__meta">
+              {aiListing?.categoryLabel && <span>{aiListing.categoryLabel}</span>}
               <span>◷ {duration} min</span>
               <span>◎ Up to {groupSize}</span>
               <CreditBadge credits={duration > 60 ? 2 : 1} compact />
@@ -108,7 +136,14 @@ export default function OfferSkill({ onBack, onPublish }) {
               className="person5-button person5-button--primary"
               type="button"
               onClick={() => {
-                onPublish?.({ title: previewTitle, description, duration, capacity: groupSize });
+                onPublish?.({
+                  title: previewTitle,
+                  description: previewDescription,
+                  duration,
+                  capacity: groupSize,
+                  category: aiListing?.category,
+                  indoor: aiListing?.indoor,
+                });
                 setPublished(true);
               }}
             >
