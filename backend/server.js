@@ -2,7 +2,9 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 
+import authRouter from "./routes/auth.js";
 import contextRouter from "./routes/context.js";
+import creditsRouter from "./routes/credits.js";
 import experiencesRouter from "./routes/experiences.js";
 import planRouter from "./routes/plan.js";
 import replaceRouter from "./routes/replace.js";
@@ -19,6 +21,8 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "localconnect-backend" });
 });
 
+app.use("/auth", authRouter);
+app.use("/credits", creditsRouter);
 app.use("/experiences", experiencesRouter);
 app.use("/context", contextRouter);
 app.use("/plan", planRouter);
@@ -27,6 +31,8 @@ app.use("/replan", replanRouter);
 app.use("/reorder", reorderRouter);
 
 // Compatibility aliases while the frontend team settles the API prefix.
+app.use("/api/auth", authRouter);
+app.use("/api/credits", creditsRouter);
 app.use("/api/experiences", experiencesRouter);
 app.use("/api/context", contextRouter);
 app.use("/api/plan", planRouter);
