@@ -61,7 +61,7 @@ export default function Login({ mode = 'login' }) {
       </h1>
       <p className="mt-3 text-muted">
         {isSignup
-          ? 'Every member is identity-verified, so people can trust who they meet.'
+          ? 'Every member is identity- and address-verified, so people can trust who they meet.'
           : 'Sign in to plan your day and see your Time Credits.'}
       </p>
 

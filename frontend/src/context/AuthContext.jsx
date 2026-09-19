@@ -42,23 +42,27 @@ export function AuthProvider({ children }) {
     try { await authApi.logout(token); } catch { /* the server session expires on its own */ }
   }, []);
 
-  const verifyIdentity = useCallback(async (details) => {
+  // Runs one verification step and applies the updated account. A rejected attempt still
+  // updates the status the UI shows, so it can display the reason.
+  const runVerification = useCallback(async (call, details) => {
     try {
-      const result = await authApi.verifyIdentity(details);
+      const result = await call(details);
       setState((current) => ({ ...current, user: result.user, balance: result.credits.balance }));
       return result;
     } catch (error) {
-      // A rejected attempt still updates the account status shown in the UI.
       if (error.data?.user) setState((current) => ({ ...current, user: error.data.user }));
       throw error;
     }
   }, []);
 
+  const verifyIdentity = useCallback((details) => runVerification(authApi.verifyIdentity, details), [runVerification]);
+  const verifyAddress = useCallback((details) => runVerification(authApi.verifyAddress, details), [runVerification]);
+
   const setBalance = useCallback((balance) => setState((current) => ({ ...current, balance })), []);
 
   const value = useMemo(
-    () => ({ ...state, login, signup, logout, verifyIdentity, setBalance }),
-    [state, login, signup, logout, verifyIdentity, setBalance],
+    () => ({ ...state, login, signup, logout, verifyIdentity, verifyAddress, setBalance }),
+    [state, login, signup, logout, verifyIdentity, verifyAddress, setBalance],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -69,4 +73,5 @@ export function useAuth() {
   return context;
 }
 
-export const isVerified = (user) => user?.verification?.status === 'verified';
+// Fully verified means both identity and address are done (the server decides).
+export const isVerified = (user) => user?.verification?.complete === true;

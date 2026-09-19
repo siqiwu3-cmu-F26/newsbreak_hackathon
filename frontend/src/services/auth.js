@@ -56,4 +56,5 @@ export const login = (credentials) => request('/auth/login', { method: 'POST', b
 export const logout = (token) => request('/auth/logout', { method: 'POST', token });
 export const fetchMe = () => request('/auth/me');
 export const verifyIdentity = (details) => request('/auth/verify-identity', { method: 'POST', body: details });
+export const verifyAddress = (details) => request('/auth/verify-address', { method: 'POST', body: details });
 export const fetchCredits = () => request('/credits');

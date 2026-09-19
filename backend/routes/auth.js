@@ -4,14 +4,17 @@ import { HttpError, errorHandler } from "../lib/httpError.js";
 import { DUMMY_PASSWORD_HASH, hashIdNumber, verifyPassword } from "../lib/security.js";
 import { requireAuth } from "../middleware/auth.js";
 import { getBalance, grantWelcomeCredits } from "../services/credits.js";
+import { mockVerifyAddress, validateAddressInput } from "../services/address.js";
 import { mockVerifyIdentity, validateIdentityInput } from "../services/identity.js";
 import { createSession, destroySession } from "../services/sessions.js";
 import {
   createUser,
   findUserByEmail,
   findUserById,
+  isFullyVerified,
   isIdHashTaken,
   publicUser,
+  setAddress,
   setVerification
 } from "../services/users.js";
 
@@ -126,7 +129,41 @@ router.post("/verify-identity", requireAuth, (req, res) => {
     idLast4: value.idNumber.slice(-4),
     idHash
   });
-  const welcome = grantWelcomeCredits(user.id);
+  // Welcome credits arrive once both checks are done, whichever finishes last.
+  const welcome = isFullyVerified(verified) ? grantWelcomeCredits(user.id) : null;
+
+  res.json({ ...authPayload(verified), welcomeCredits: welcome?.amount ?? 0 });
+});
+
+// MOCK: checks the address format and a few rules (see services/address.js). Identity comes first.
+router.post("/verify-address", requireAuth, (req, res) => {
+  const { user } = req;
+  if (user.verification.status !== "verified") {
+    throw new HttpError(409, "Verify your identity before your address", { code: "IDENTITY_REQUIRED" });
+  }
+  if (user.address?.status === "verified") {
+    throw new HttpError(409, "Your address is already verified");
+  }
+
+  const { errors, value } = validateAddressInput(req.body);
+  if (Object.keys(errors).length) throw new HttpError(400, "Please fix the highlighted fields", { fields: errors });
+
+  const result = mockVerifyAddress(value);
+  if (!result.verified) {
+    setAddress(user.id, { status: "rejected", reason: result.reason, code: result.code });
+    throw new HttpError(422, result.reason, {
+      code: result.code,
+      user: publicUser(findUserById(user.id))
+    });
+  }
+
+  const verified = setAddress(user.id, {
+    status: "verified",
+    method: "mock",
+    verifiedAt: new Date().toISOString(),
+    ...value
+  });
+  const welcome = isFullyVerified(verified) ? grantWelcomeCredits(user.id) : null;
 
   res.json({ ...authPayload(verified), welcomeCredits: welcome?.amount ?? 0 });
 });

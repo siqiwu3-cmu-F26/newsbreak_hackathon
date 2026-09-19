@@ -51,8 +51,8 @@ export function spend(userId, amount, reason, meta = {}) {
   });
 }
 
-// Granted once, when identity verification succeeds (not at signup, so unverified
-// accounts can't farm credits).
+// Granted once, when identity and address verification are both complete (not at signup,
+// so unverified accounts can't farm credits).
 export function grantWelcomeCredits(userId) {
   return store.update((state) => {
     const alreadyGranted = forUser(state, userId).some((entry) => entry.reason === "welcome");

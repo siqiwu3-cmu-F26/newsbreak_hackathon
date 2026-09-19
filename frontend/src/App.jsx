@@ -5,7 +5,7 @@ import PagePlaceholder from './components/PagePlaceholder.jsx';
 import PlanResult from './pages/PlanResult.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
 import Login from './pages/Login.jsx';
-import VerifyIdentity from './pages/VerifyIdentity.jsx';
+import Verify from './pages/Verify.jsx';
 import Wallet from './pages/Wallet.jsx';
 import usePlannerSession from './hooks/usePlannerSession.js';
 
@@ -16,10 +16,10 @@ export default function App() {
       <Route element={<AppLayout />}>
         <Route path="/login" element={<Login mode="login" />} />
         <Route path="/signup" element={<Login mode="signup" />} />
-        {/* Signed in, but identity may still be unverified. */}
+        {/* Signed in, but identity or address verification may be incomplete. */}
         <Route element={<RequireAuth />}>
-          <Route path="/verify" element={<VerifyIdentity />} />
-          {/* Everything below needs a signed-in, identity-verified user. */}
+          <Route path="/verify" element={<Verify />} />
+          {/* Everything below needs a signed-in user whose identity and address are verified. */}
           <Route element={<RequireAuth verified />}>
             <Route index element={<Home draft={draft} onDraftChange={setDraft} onPlanReady={setResult} />} />
             {/* Replace these placeholders with the feature pages as they are implemented. */}

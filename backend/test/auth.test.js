@@ -9,7 +9,8 @@ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "localconnect-auth-"));
 process.env.DB_FILE = path.join(tempDir, "db.json");
 
 const { hashPassword, verifyPassword } = await import("../lib/security.js");
-const { createUser, findUserByEmail, publicUser } = await import("../services/users.js");
+const { createUser, findUserByEmail, isFullyVerified, publicUser } = await import("../services/users.js");
+const { mockVerifyAddress, validateAddressInput } = await import("../services/address.js");
 const { createSession, destroySession, getUserForToken, SESSION_TTL_MS } = await import("../services/sessions.js");
 const { ageOn, mockVerifyIdentity, normalizeName, validateIdentityInput } = await import("../services/identity.js");
 const { earn, getBalance, grantWelcomeCredits, listTransactions, spend } = await import("../services/credits.js");
@@ -91,6 +92,40 @@ test("mock verification enforces age, expiry, name and the demo failure rule", (
   // Non-Latin and accented names must survive normalization, not collapse to empty.
   assert.equal(normalizeName("高博"), "高博");
   assert.equal(normalizeName("José  O'Brien"), "josé o brien");
+});
+
+test("address input validation flags each bad field and normalizes good input", () => {
+  const good = { line1: "  123   Main St ", line2: "Apt 4", city: "Palo Alto", state: "ca", zip: "94301" };
+  const { errors, value } = validateAddressInput(good);
+  assert.deepEqual(errors, {});
+  assert.deepEqual(value, { line1: "123 Main St", line2: "Apt 4", city: "Palo Alto", state: "CA", zip: "94301" });
+  assert.deepEqual(validateAddressInput({ ...good, zip: "94301-1234" }).errors, {});
+
+  const bad = validateAddressInput({ line1: "Main Street", city: "", state: "ZZ", zip: "943" }).errors;
+  assert.deepEqual(Object.keys(bad).sort(), ["city", "line1", "state", "zip"]);
+
+  // A P.O. box must pass validation so the specific "not a P.O. Box" rejection can fire.
+  assert.deepEqual(validateAddressInput({ ...good, line1: "PO Box 55" }).errors, {});
+});
+
+test("mock address verification rejects P.O. boxes and the demo ZIP", () => {
+  const ok = { line1: "123 Main St", city: "Palo Alto", state: "CA", zip: "94301" };
+  assert.equal(mockVerifyAddress(ok).verified, true);
+  assert.equal(mockVerifyAddress({ ...ok, line1: "1 P.O. Box 55" }).verified, true, "only a leading PO box counts");
+  assert.equal(mockVerifyAddress({ ...ok, line1: "PO Box 55" }).code, "PO_BOX");
+  assert.equal(mockVerifyAddress({ ...ok, line1: "P.O. Box 55" }).code, "PO_BOX");
+  assert.equal(mockVerifyAddress({ ...ok, line1: "Post Office Box 9" }).code, "PO_BOX");
+  assert.equal(mockVerifyAddress({ ...ok, zip: "00000" }).code, "ADDRESS_NOT_FOUND");
+});
+
+test("a member is fully verified only with both identity and address", () => {
+  const verified = { status: "verified" };
+  assert.equal(isFullyVerified({ verification: verified, address: verified }), true);
+  assert.equal(isFullyVerified({ verification: verified, address: { status: "unverified" } }), false);
+  assert.equal(isFullyVerified({ verification: { status: "unverified" }, address: verified }), false);
+  // Accounts created before address verification existed have no address at all.
+  assert.equal(isFullyVerified({ verification: verified }), false);
+  assert.equal(publicUser({ id: "u", name: "n", email: "e", verification: verified }).verification.complete, false);
 });
 
 test("time credits are linked to their own user and derived from the ledger", () => {
