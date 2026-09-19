@@ -1,22 +1,22 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router";
 import CreditBadge from "../components/CreditBadge";
 import MapView from "../components/MapView";
 import communityExperiences from "../data/communityExperiences";
 import "../person5.css";
 
-function idFromPath() {
-  const parts = window.location.pathname.split("/").filter(Boolean);
-  return parts[parts.length - 1];
-}
 export default function ExperienceDetail({ experienceId, onBack, onAddToPlan }) {
+  const navigate = useNavigate();
+  const params = useParams();
+  const [added, setAdded] = useState(false);
   const experience = useMemo(
-    () => communityExperiences.find((item) => item.id === (experienceId || idFromPath())) || communityExperiences[0],
-    [experienceId],
+    () => communityExperiences.find((item) => item.id === (experienceId || params.experienceId)) || communityExperiences[0],
+    [experienceId, params.experienceId],
   );
 
   return (
     <main className="experience-detail">
-      <button className="back-link" type="button" onClick={onBack || (() => window.history.back())}>
+      <button className="back-link" type="button" onClick={onBack || (() => navigate("/community"))}>
         ← Back to community
       </button>
 
@@ -83,10 +83,19 @@ export default function ExperienceDetail({ experienceId, onBack, onAddToPlan }) 
               ))}
             </select>
           </label>
-          <button className="person5-button person5-button--primary" type="button" onClick={() => onAddToPlan?.(experience)}>
-            Add to my plan
+          <button
+            className="person5-button person5-button--primary"
+            type="button"
+            onClick={() => {
+              onAddToPlan?.(experience);
+              setAdded(true);
+            }}
+          >
+            {added ? "✓ Added to plan" : "Add to my plan"}
           </button>
-          <p className="experience-booking__note">Demo only · No credit will be charged</p>
+          <p className="experience-booking__note" role="status">
+            {added ? "Saved for this demo session." : "Demo only · No credit will be charged"}
+          </p>
         </aside>
       </div>
     </main>

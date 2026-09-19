@@ -11,6 +11,7 @@ const categoryIcons = {
 };
 
 export default function ExperienceCard({ experience, onSelect }) {
+  const rating = Number(experience.rating || 5);
   const handleClick = () => {
     if (onSelect) onSelect(experience);
   };
@@ -35,8 +36,8 @@ export default function ExperienceCard({ experience, onSelect }) {
       <div className="experience-card__body">
         <div className="experience-card__eyebrow">
           <span>Hosted by {experience.host}</span>
-          <span aria-label={`${experience.rating} out of 5 stars`}>
-            ★ {Number(experience.rating || 5).toFixed(1)}
+          <span aria-label={`${rating} out of 5 stars`}>
+            ★ {rating.toFixed(1)}
           </span>
         </div>
         <h3>{experience.name}</h3>

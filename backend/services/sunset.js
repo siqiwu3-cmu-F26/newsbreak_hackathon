@@ -1,10 +1,10 @@
-const FALLBACK_SUN = Object.freeze({
+export const FALLBACK_SUN = Object.freeze({
   sunrise: "7:01 AM",
   sunset: "7:08 PM",
   source: "fallback",
 });
 
-function formatLocalTime(isoTime) {
+export function formatLocalTime(isoTime) {
   if (!isoTime || !isoTime.includes("T")) return null;
   const [hourText, minute] = isoTime.split("T")[1].split(":");
   const hour = Number(hourText);
@@ -13,7 +13,7 @@ function formatLocalTime(isoTime) {
   return `${displayHour}:${minute} ${suffix}`;
 }
 
-async function getSunTimes({ lat, lng, date, timezone = "auto" } = {}, options = {}) {
+export async function getSunTimes({ lat, lng, date, timezone = "auto" } = {}, options = {}) {
   const { timeoutMs = 3500, fetchImpl = global.fetch } = options;
   if (!fetchImpl || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
     return { ...FALLBACK_SUN };
@@ -51,5 +51,3 @@ async function getSunTimes({ lat, lng, date, timezone = "auto" } = {}, options =
     clearTimeout(timeout);
   }
 }
-
-module.exports = { FALLBACK_SUN, formatLocalTime, getSunTimes };

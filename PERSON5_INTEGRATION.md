@@ -1,21 +1,21 @@
-# Person 5 integration
+# Person 5 integration reference
 
-This branch contains the map, weather/sunset context, and community experience UI.
+The map, weather/sunset context, and community experience UI are now wired into the main application.
 
 ## Frontend routes
 
-Wire these components into `App.jsx` or the team's router:
+The following components are routed from `App.jsx`:
 
 ```jsx
-import Community from "./pages/Community";
-import ExperienceDetail from "./pages/ExperienceDetail";
-import OfferSkill from "./pages/OfferSkill";
+import Community from "./pages/Community.jsx";
+import ExperienceDetail from "./pages/ExperienceDetail.jsx";
+import OfferSkill from "./pages/OfferSkill.jsx";
 ```
 
 Suggested paths:
 
 - `/community` → `Community`
-- `/community/:experienceId` → `ExperienceDetail`
+- `/experiences/:experienceId` → `ExperienceDetail`
 - `/offer-skill` → `OfferSkill`
 
 `Community` tries `GET /api/experiences` first and falls back to the local demo catalog, so it is safe to demo before the backend data is ready.
@@ -23,8 +23,8 @@ Suggested paths:
 Use the itinerary components like this:
 
 ```jsx
-import MapView from "./components/MapView";
-import WeatherContext from "./components/WeatherContext";
+import MapView from "./components/MapView.jsx";
+import WeatherContext from "./components/WeatherContext.jsx";
 
 <WeatherContext
   weather={environment.weather}
@@ -37,10 +37,10 @@ import WeatherContext from "./components/WeatherContext";
 
 ## Backend route
 
-Mount the context route in `server.js` after Express is initialized:
+The context route is mounted in `server.js` at both `/context` and `/api/context`:
 
 ```js
-const contextRouter = require("./routes/context");
+import contextRouter from "./routes/context.js";
 app.use("/api/context", contextRouter);
 ```
 
@@ -50,4 +50,4 @@ Example:
 GET /api/context?location=Palo%20Alto%2C%20CA
 ```
 
-The service uses Open-Meteo without an API key and returns deterministic Palo Alto fallback data when the network is unavailable. The planner can consume the returned `location`, `weather`, and `sunset` fields directly.
+The service uses Open-Meteo without an API key and returns deterministic Palo Alto fallback data when the network is unavailable. The result page consumes the returned `location`, `weather`, and `sunset` fields directly.

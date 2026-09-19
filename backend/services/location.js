@@ -1,4 +1,4 @@
-const DEFAULT_LOCATION = Object.freeze({
+export const DEFAULT_LOCATION = Object.freeze({
   city: "Palo Alto",
   region: "California",
   country: "United States",
@@ -8,7 +8,7 @@ const DEFAULT_LOCATION = Object.freeze({
   source: "fallback",
 });
 
-async function geocodeLocation(query = "Palo Alto, CA", options = {}) {
+export async function geocodeLocation(query = "Palo Alto, CA", options = {}) {
   const { timeoutMs = 3500, fetchImpl = global.fetch } = options;
   if (!fetchImpl || String(query).trim().length < 2) return { ...DEFAULT_LOCATION };
 
@@ -45,5 +45,3 @@ async function geocodeLocation(query = "Palo Alto, CA", options = {}) {
     clearTimeout(timeout);
   }
 }
-
-module.exports = { DEFAULT_LOCATION, geocodeLocation };

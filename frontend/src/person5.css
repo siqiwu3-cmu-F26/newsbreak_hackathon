@@ -72,12 +72,12 @@
 .community-hero {
   position: relative;
   display: grid;
-  min-height: 530px;
+  min-height: 320px;
   grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.6fr);
-  gap: 70px;
+  gap: 32px;
   align-items: center;
   overflow: hidden;
-  padding: 70px max(6vw, 30px);
+  padding: 32px clamp(24px, 4vw, 48px);
   color: white;
   background:
     radial-gradient(circle at 82% 18%, rgba(219, 238, 148, 0.24), transparent 28%),
@@ -102,18 +102,18 @@
 .community-hero h1 {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(3rem, 6vw, 5.7rem);
+  font-size: clamp(2rem, 3.7vw, 3.4rem);
   font-weight: 500;
   letter-spacing: -0.055em;
-  line-height: 0.96;
+  line-height: 1.08;
 }
 
 .community-hero__content > p {
   max-width: 620px;
-  margin: 27px 0;
+  margin: 18px 0;
   color: #d8e5df;
-  font-size: 1.08rem;
-  line-height: 1.75;
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .community-hero__actions { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -124,9 +124,9 @@
   display: flex;
   max-width: 320px;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   justify-self: center;
-  padding: 32px;
+  padding: 20px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 28px;
   color: var(--lc-ink);
@@ -136,11 +136,11 @@
 }
 
 .community-hero__credit-card small { color: #6f7e77; font-weight: 750; text-transform: uppercase; letter-spacing: 0.08em; }
-.community-hero__credit-card strong { font-family: Georgia, serif; font-size: 1.75rem; line-height: 1.12; }
+.community-hero__credit-card strong { font-family: Georgia, serif; font-size: 1.4rem; line-height: 1.12; }
 .community-hero__credit-card p { margin: 0; color: var(--lc-muted); font-size: 0.88rem; line-height: 1.55; }
-.community-hero__orb { display: grid; width: 50px; height: 50px; place-items: center; border-radius: 50%; color: #506922; background: var(--lc-lime); font-size: 1.3rem; }
+.community-hero__orb { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 50%; color: #506922; background: var(--lc-lime); font-size: 1.1rem; }
 
-.community-section { max-width: 1240px; margin: 0 auto; padding: 80px 28px 92px; }
+.community-section { max-width: 1240px; margin: 0 auto; padding: 44px 28px 64px; }
 .community-section__heading { display: flex; gap: 30px; align-items: end; justify-content: space-between; margin-bottom: 26px; }
 .community-section__heading h2,
 .community-cta h2,
@@ -217,16 +217,19 @@
 .route-map__road { fill: none; stroke: white; stroke-linecap: round; stroke-width: 28; }
 .route-map__road--minor { stroke-width: 14; }
 .route-map__route { fill: none; stroke: var(--lc-green); stroke-dasharray: 8 7; stroke-linecap: round; stroke-linejoin: round; stroke-width: 4; }
-.route-map__marker { outline: none; cursor: pointer; }
+.route-map__marker { cursor: pointer; }
+.route-map__marker:focus-visible circle { stroke: #d26c4b; stroke-width: 6; }
 .route-map__marker circle { fill: var(--lc-green); stroke: white; stroke-width: 4; transition: r 150ms ease, fill 150ms ease; }
 .route-map__marker text { fill: white; font-family: inherit; font-size: 16px; font-weight: 800; text-anchor: middle; pointer-events: none; }
 .route-map__marker--active circle { fill: #d26c4b; }
 .route-map__water-label { fill: #7ea596; font-family: inherit; font-size: 15px; font-weight: 800; letter-spacing: 4px; }
-.route-map__popover { position: absolute; top: 15px; left: 15px; display: flex; flex-direction: column; gap: 3px; max-width: 250px; padding: 12px 14px; border: 1px solid rgba(23, 53, 45, 0.1); border-radius: 12px; background: rgba(255, 254, 249, 0.94); box-shadow: 0 10px 25px rgba(23, 53, 45, 0.13); }
+.route-map__popover { position: absolute; display: flex; flex-direction: column; gap: 3px; width: max-content; max-width: min(220px, calc(100% - 16px)); padding: 10px 12px; border: 1px solid rgba(23, 53, 45, 0.1); border-radius: 12px; background: rgba(255, 254, 249, 0.97); box-shadow: 0 6px 16px rgba(23, 53, 45, 0.1); pointer-events: none; overflow-wrap: anywhere; }
+.route-map__popover strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.85rem; line-height: 1.4; }
 .route-map__popover span { color: var(--lc-muted); font-size: 0.76rem; }
 .route-map__legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 10px; margin: 0; padding: 14px 18px 18px; list-style: none; }
 .route-map__legend button { display: flex; width: 100%; align-items: center; gap: 9px; padding: 8px; border: 0; border-radius: 10px; color: var(--lc-ink); background: transparent; text-align: left; cursor: pointer; }
 .route-map__legend button:hover { background: #f1f3ed; }
+.route-map__legend button[aria-pressed="true"] { background: #edf1e9; }
 .route-map__legend button > span:first-child { display: grid; width: 25px; height: 25px; flex: 0 0 auto; place-items: center; border-radius: 50%; color: white; background: var(--lc-green); font-size: 0.7rem; font-weight: 800; }
 .route-map__legend button > span:last-child { display: flex; min-width: 0; flex-direction: column; }
 .route-map__legend strong { overflow: hidden; font-size: 0.78rem; text-overflow: ellipsis; white-space: nowrap; }
@@ -289,6 +292,8 @@
 .listing-preview h2 { margin: 0; font-family: Georgia, serif; font-size: 1.7rem; font-weight: 500; }
 .listing-preview p { color: var(--lc-muted); font-size: 0.85rem; }
 .listing-preview__meta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; color: #586a62; font-size: 0.77rem; }
+.listing-preview__actions { display: flex; align-items: center; flex-direction: column; gap: 8px; }
+.listing-preview__published { margin: 0; color: #536e28; font-size: 0.78rem; font-weight: 750; }
 
 @media (max-width: 940px) {
   .community-hero { grid-template-columns: 1fr; }
@@ -301,8 +306,8 @@
 }
 
 @media (max-width: 640px) {
-  .community-hero { min-height: 500px; padding: 55px 24px; }
-  .community-section { padding: 58px 18px; }
+  .community-hero { min-height: 0; padding: 28px 20px; }
+  .community-section { padding: 32px 18px; }
   .community-section__heading { align-items: stretch; flex-direction: column; }
   .community-search { box-sizing: border-box; width: 100%; }
   .experience-grid { grid-template-columns: 1fr; }

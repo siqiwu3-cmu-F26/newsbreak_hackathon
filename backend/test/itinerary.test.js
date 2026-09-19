@@ -9,6 +9,7 @@ import {
   replanForRain,
   validateAgentPlan
 } from "../lib/itinerary.js";
+import { parseLLMJson } from "../services/agent.js";
 
 test("experience catalog satisfies MVP requirements", () => {
   assert.ok(experiences.length >= 12);
@@ -54,4 +55,23 @@ test("rain replan removes outdoor activities", () => {
   const replanned = replanForRain(original);
   assert.ok(replanned.activities.every((item) => item.indoor));
   assert.match(replanned.summary, /indoor|weather/i);
+});
+
+test("agent parser accepts fenced JSON followed by stray prose", () => {
+  const parsed = parseLLMJson('```json\n{"summary":"Good","activities":[]}\n```\nExtra note');
+  assert.equal(parsed.summary, "Good");
+});
+
+test("agent validator enforces listed duration and travel gaps", () => {
+  const request = normalizePlanRequest();
+  const errors = validateAgentPlan({
+    summary: "Too tight",
+    activities: [
+      { id: "community_01", startTime: "15:00", endTime: "15:30" },
+      { id: "business_01", startTime: "15:30", endTime: "16:20" },
+      { id: "business_02", startTime: "17:00", endTime: "18:15" }
+    ]
+  }, request);
+  assert.ok(errors.some((error) => error.includes("listed duration")));
+  assert.ok(errors.some((error) => error.includes("minutes for travel")));
 });

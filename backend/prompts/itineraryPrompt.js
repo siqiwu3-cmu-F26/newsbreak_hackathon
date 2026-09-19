@@ -21,10 +21,12 @@ You must respond with JSON only. No prose, no markdown code fences, no explanati
  * @param {object} request - { groupType, people, startTime, endTime, budget, interests, notes }
  */
 function describeRequest(request) {
-  const { groupType, people, startTime, endTime, budget, interests, notes } = request;
+  const { groupType, people, date, startTime, endTime, budget, interests, location, notes } = request;
   const lines = [
     `Group type: ${groupType}`,
     `Number of people: ${people}`,
+    `Date: ${date}`,
+    `Location: ${location?.city || "Palo Alto"}`,
     `Time window: ${startTime} to ${endTime}`,
     `Budget: $${budget} total`,
     `Interests: ${(interests || []).join(", ") || "none specified"}`,
@@ -58,6 +60,8 @@ const HARD_RULES = `Hard rules (all must hold):
 - Only use "id" values that appear in the experience list below. Never invent an id, and never reuse the same id twice.
 - Choose between 3 and 5 activities total.
 - Activities must not overlap in time, and must be listed in chronological order.
+- Each activity's endTime minus startTime must exactly equal its listed duration.
+- Leave at least 15 minutes between one activity's endTime and the next activity's startTime for local travel.
 - The first activity's startTime must be >= the user's requested startTime, and the last
   activity's endTime must be <= the user's requested endTime.
 - Each activity's startTime/endTime must fall within that experience's own openFrom/openTo hours.
@@ -73,11 +77,23 @@ const HARD_RULES = `Hard rules (all must hold):
  * @param {object[]} params.experiences - candidate experiences (already pre-filtered by lib/itinerary.js filterExperiences)
  * @param {string[]} [params.feedback] - validation errors from the previous attempt, if this is a retry
  */
-export function buildItineraryPrompt({ request, experiences, feedback = [] }) {
+export function buildItineraryPrompt({ request, experiences, feedback = [], environment }) {
   const trimmed = experiences.map(trimExperience);
+  const environmentLines = environment
+    ? [
+        "",
+        "Local conditions:",
+        `Weather: ${environment.weather?.condition || "unknown"}, ${environment.weather?.temperature ?? "?"}°F`,
+        `Sunset: ${environment.sunset || "unknown"}`,
+        ...(environment.weather?.condition === "rain"
+          ? ["Because it is raining, choose indoor experiences only."]
+          : []),
+      ]
+    : [];
 
   const parts = [
     describeRequest(request),
+    ...environmentLines,
     "",
     "Available experiences (JSON array):",
     JSON.stringify(trimmed),
