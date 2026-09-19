@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import ExperienceCard from "../components/ExperienceCard";
+import CommunityMap from "../components/CommunityMap";
 import CreditBadge from "../components/CreditBadge";
 import { API_BASE_URL } from "../config.js";
 import communityExperiences from "../data/communityExperiences";
+import useUserLocation from "../hooks/useUserLocation.js";
+import { distanceLabel, distanceMiles, hasCoordinates } from "../lib/geo.js";
 import "../person5.css";
 
 const categories = ["all", "creative", "food", "outdoors", "relaxing", "culture"];
@@ -14,6 +17,7 @@ export default function Community({ onSelectExperience, onOfferSkill }) {
   const [category, setCategory] = useState("all");
   const [query, setQuery] = useState("");
   const [usingFallback, setUsingFallback] = useState(true);
+  const userLocation = useUserLocation();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,6 +58,16 @@ export default function Community({ onSelectExperience, onOfferSkill }) {
       return matchesCategory && (!normalizedQuery || searchText.includes(normalizedQuery));
     });
   }, [category, experiences, query]);
+
+  // Straight-line distance from the user to each experience, shared by the map and the cards.
+  const { position: userPosition } = userLocation;
+  const experiencesWithDistance = useMemo(
+    () => visibleExperiences.map((experience) => ({
+      ...experience,
+      distanceMiles: hasCoordinates(experience) ? distanceMiles(userPosition, experience) : null,
+    })),
+    [visibleExperiences, userPosition],
+  );
 
   const selectExperience = (experience) => {
     if (onSelectExperience) {
@@ -135,10 +149,17 @@ export default function Community({ onSelectExperience, onOfferSkill }) {
           </div>
         )}
 
+        <CommunityMap experiences={experiencesWithDistance} location={userLocation} onSelect={selectExperience} />
+
         {visibleExperiences.length ? (
           <div className="experience-grid">
-            {visibleExperiences.map((experience) => (
-              <ExperienceCard key={experience.id} experience={experience} onSelect={selectExperience} />
+            {experiencesWithDistance.map((experience) => (
+              <ExperienceCard
+                key={experience.id}
+                experience={experience}
+                onSelect={selectExperience}
+                distanceLabel={distanceLabel(experience.distanceMiles, userLocation.source)}
+              />
             ))}
           </div>
         ) : (

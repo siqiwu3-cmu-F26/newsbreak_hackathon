@@ -10,7 +10,7 @@ const categoryIcons = {
   culture: "♫",
 };
 
-export default function ExperienceCard({ experience, onSelect }) {
+export default function ExperienceCard({ experience, onSelect, distanceLabel }) {
   const rating = Number(experience.rating || 5);
   const handleClick = () => {
     if (onSelect) onSelect(experience);
@@ -46,6 +46,7 @@ export default function ExperienceCard({ experience, onSelect }) {
           <span>◷ {experience.duration} min</span>
           <span>◎ Up to {experience.capacity || 4}</span>
           <span>⌖ {experience.location}</span>
+          {distanceLabel && <span className="experience-card__distance">➤ {distanceLabel}</span>}
         </div>
         <div className="experience-card__footer">
           <CreditBadge credits={experience.credits} compact />
